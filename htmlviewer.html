@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    background-color: #e9ecef;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+  }
+
+  /* HEADER: CHẾ ĐỘ AUTO/MANUAL */
+  .header-panel {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    z-index: 10;
+  }
+  .switch-label {
+    font-size: 18px;
+    font-weight: bold;
+    margin-right: 15px;
+    color: #333;
+  }
+  
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 70px;
+    height: 38px;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-switch {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 38px;
+  }
+  .slider-switch:before {
+    position: absolute;
+    content: "";
+    height: 30px; width: 30px;
+    left: 4px; bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  input:checked + .slider-switch { background-color: #4CAF50; }
+  input:checked + .slider-switch:before { transform: translateX(32px); }
+
+  /* KHU VỰC ĐIỀU KHIỂN */
+  .control-area {
+    display: flex;
+    flex: 1;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+  }
+
+  .joystick-box {
+    background: #fff;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .label-val {
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #555;
+    font-size: 14px;
+  }
+
+  input[type=range] {
+    background: transparent;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 45px;
+    width: 45px;
+    border-radius: 50%;
+    background: #007bff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    border: 2px solid #fff;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    background: #ddd;
+    border-radius: 10px;
+  }
+
+  /* Slider Ngang - TRÁI/PHẢI (V2) */
+  input[type=range].horizontal {
+    -webkit-appearance: none;
+    width: 150px;
+    height: 45px;
+  }
+  input[type=range].horizontal::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 15px;
+    margin-top: 15px;
+  }
+  input[type=range].horizontal::-webkit-slider-thumb {
+    margin-top: -15px;
+  }
+
+  /* Slider Dọc - TIẾN/LÙI (V1) */
+  input[type=range].vertical {
+    -webkit-appearance: slider-vertical;
+    width: 45px;
+    height: 180px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="header-panel">
+    <span class="switch-label">Chế độ (<span id="modeText">Manual</span>)</span>
+    <label class="switch">
+      <input type="checkbox" id="modeSwitch" onchange="toggleMode(this)">
+      <span class="slider-switch"></span>
+    </label>
+  </div>
+
+  <div class="control-area">
+    <div class="joystick-box" style="margin-top: 60px;">
+      <div class="label-val" id="val2">Trái / Phải: Thẳng</div>
+      <input type="range" class="horizontal" id="slider2" min="1000" max="2000" value="1500" 
+             oninput="updateVal(2, this.value)" 
+             ontouchend="snapToCenter(this, 2)" 
+             onmouseup="snapToCenter(this, 2)">
+    </div>
+
+    <div class="joystick-box">
+      <div class="label-val" id="val1">Tiến / Lùi: Dừng</div>
+      <input type="range" class="vertical" id="slider1" min="1000" max="2000" value="1500" 
+             oninput="updateVal(1, this.value)" 
+             ontouchend="snapToCenter(this, 1)" 
+             onmouseup="snapToCenter(this, 1)">
+    </div>
+  </div>
+
+<script>
+  function getDirectionText(id, val) {
+    if (val == 1500) return id === 1 ? "Dừng" : "Thẳng";
+    if (id === 1) return val > 1500 ? "Tiến ↑" : "Lùi ↓";
+    if (id === 2) return val > 1500 ? "Phải →" : "Trái ←";
+  }
+
+  function updateVal(id, val) {
+    let label = id === 1 ? "Tiến / Lùi: " : "Trái / Phải: ";
+    document.getElementById('val' + id).innerText = label + getDirectionText(id, val);
+    sendToEra(id, parseInt(val));
+  }
+
+  function snapToCenter(element, id) {
+    element.value = 1500;
+    updateVal(id, 1500);
+  }
+
+  function toggleMode(checkbox) {
+    let val = checkbox.checked ? 2000 : 1000;
+    document.getElementById('modeText').innerText = checkbox.checked ? "Auto" : "Manual";
+    sendToEra(3, val);
+  }
+
+  function sendToEra(pin, value) {
+    let message = { type: "write", pin: pin, value: value };
+    window.parent.postMessage(JSON.stringify(message), '*');
+  }
+</script>
+</body>
+</html>
