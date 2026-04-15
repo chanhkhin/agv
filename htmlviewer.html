@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AGV Control Center - Integrated</title>
+    <title>AGV Smart Control</title>
     <script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
     <style>
         body { 
@@ -21,6 +21,7 @@
         .btn-mode.active-manual { background: #FF5500; }
         .btn-mode.active-auto { background: #00ffcc; color: black; }
 
+        /* Panel AUTO */
         .auto-panel {
             display: none; flex-direction: column; padding: 15px; background: #1e1e1e;
             margin: 0 15px 10px 15px; border-radius: 15px; border: 1px solid #333; flex: 1; overflow-y: auto;
@@ -32,11 +33,11 @@
         .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .uid-input {
             flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #444;
-            background: #2a2a2a; color: #00ffcc; font-size: 18px; outline: none; text-align: center; font-family: monospace;
+            background: #2a2a2a; color: #00ffcc; font-size: 15px; outline: none; transition: 0.3s;
         }
         .btn-add {
             background: #00ffcc; color: black; border: none; border-radius: 8px;
-            padding: 0 25px; font-size: 24px; font-weight: bold; cursor: pointer;
+            padding: 0 20px; font-size: 20px; font-weight: bold; cursor: pointer;
         }
 
         .checkpoint-list { 
@@ -54,16 +55,22 @@
         .btn-save { background: #28a745; color: white; }
         .btn-reset { background: #dc3545; color: white; }
 
+        /* Phân cách */
         .divider { height: 1px; background: #444; margin: 10px 0 20px 0; position: relative; }
         .divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #1e1e1e; padding: 0 10px; font-size: 12px; color: #888; font-weight: bold; }
 
+        /* GOTO Section */
         .goto-list { display: flex; flex-direction: column; gap: 10px; }
         .btn-goto {
             background: #17a2b8; color: white; border: none; padding: 15px; border-radius: 10px;
             font-size: 16px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: 0.2s;
         }
         .btn-goto:active { transform: scale(0.97); background: #138496; }
+        .btn-goto span.uid-txt { font-size: 12px; opacity: 0.8; font-family: monospace; font-weight: normal; }
+        .no-data-msg { text-align: center; color: #666; font-size: 13px; font-style: italic; }
 
+        /* Panel MANUAL */
         .manual-panel { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
         .manual-panel.hidden { display: none; }
         .joy-box { background: #1e1e1e; padding: 15px; border-radius: 20px; border: 1px solid #333; text-align: center; width: 42%; }
@@ -81,7 +88,7 @@
 </head>
 <body>
 
-    <div class="header">AGV SMART CONTROL</div>
+    <div class="header">AGV CONTROL CENTER</div>
 
     <div class="mode-container">
         <button id="btnManual" class="btn-mode active-manual">MANUAL</button>
@@ -89,9 +96,10 @@
     </div>
 
     <div id="autoPanel" class="auto-panel">
-        <div class="section-title">1. THIẾT LẬP LỘ TRÌNH (RFID)</div>
+        
+        <div class="section-title">1. THIẾT LẬP LỘ TRÌNH</div>
         <div class="input-group">
-            <input type="text" id="uidInput" class="uid-input" placeholder="Đang chờ quét thẻ...">
+            <input type="text" id="uidInput" class="uid-input" placeholder="Quét hoặc nhập UID...">
             <button id="btnAdd" class="btn-add">+</button>
         </div>
 
@@ -102,8 +110,9 @@
             <button id="btnReset" class="btn-action btn-reset">RESET</button>
         </div>
 
-        <div class="divider"><span>2. ĐIỀU HƯỚNG GOTO</span></div>
+        <div class="divider"><span>2. LỆNH ĐIỀU HƯỚNG GOTO</span></div>
         <div id="gotoList" class="goto-list"></div>
+
     </div>
 
     <div id="manualPanel" class="manual-panel">
@@ -124,6 +133,180 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        const eraWidget = new EraWidget();
+        // actionV1, V2, V3 dùng để gửi lệnh điều khiển xe
+        let actionV1, actionV2, actionV3; 
+        // configUID dùng để nhận chuỗi thẻ RFID từ ESP32
+        let configUID; 
+        
+        // Mảng chứa các UID đã thêm tạm thời chưa lưu
+        let tempCheckpoints = []; 
+        // Dữ liệu chính thức được lấy từ LocalStorage
+        let savedCheckpoints = JSON.parse(localStorage.getItem('AGV_Checkpoints')) || [];
+
+        const uidInput = document.getElementById('uidInput');
+        const checkpointListDiv = document.getElementById('checkpointList');
+        const gotoListDiv = document.getElementById('gotoList');
+
+        eraWidget.init({
+            onConfiguration: (conf) => {
+                // Ánh xạ các Hành động (Actions) - V1, V2, V3
+                if(conf.actions && conf.actions.length >= 3) {
+                    actionV1 = conf.actions[0]; // Throttle
+                    actionV2 = conf.actions[1]; // Steering
+                    actionV3 = conf.actions[2]; // Mode & Goto (Numeric)
+                }
+
+                // TÍCH HỢP TỪ BẢN TEST: Lấy cấu hình "Giá trị hiện thời" (Realtime) để nhận UID
+                if (conf.realtime_configs && conf.realtime_configs.length > 0) {
+                    configUID = conf.realtime_configs[0]; // V4
+                }
+            },
+            onValues: (values) => {
+                // Lắng nghe dữ liệu từ chân V4
+                if (configUID && values[configUID.id]) {
+                    const receivedUID = values[configUID.id].value;
+                    
+                    if (receivedUID !== undefined && receivedUID !== null && String(receivedUID).trim() !== "") {
+                        // Điền trực tiếp vào ô input
+                        uidInput.value = receivedUID;
+
+                        // Tạo hiệu ứng chớp tắt màu nền để báo hiệu quét thành công
+                        uidInput.style.backgroundColor = "#00ffcc";
+                        uidInput.style.color = "#000";
+                        setTimeout(() => {
+                            uidInput.style.backgroundColor = "#2a2a2a";
+                            uidInput.style.color = "#00ffcc";
+                        }, 400);
+                    }
+                }
+            }
+        });
+
+        // --- HÀM RENDER ---
+        function renderUI() {
+            // 1. Render danh sách thẻ Điểm A, B, C (hiển thị cả mảng temp)
+            checkpointListDiv.innerHTML = '';
+            let displayList = tempCheckpoints.length > 0 ? tempCheckpoints : savedCheckpoints;
+            
+            displayList.forEach((cp, index) => {
+                const letter = String.fromCharCode(65 + index);
+                const card = document.createElement('div');
+                card.className = 'point-card';
+                card.innerHTML = `
+                    <span class="letter">${letter}</span>
+                    <span class="uid-label">${cp.uid}</span>
+                `;
+                checkpointListDiv.appendChild(card);
+            });
+
+            // 2. Render Nút GOTO dựa trên dữ liệu ĐÃ LƯU
+            gotoListDiv.innerHTML = '';
+            if (savedCheckpoints.length === 0) {
+                gotoListDiv.innerHTML = '<div class="no-data-msg">Chưa có điểm lưu nào. Hãy thêm UID và bấm LƯU DỮ LIỆU.</div>';
+            } else {
+                savedCheckpoints.forEach((cp, index) => {
+                    const letter = String.fromCharCode(65 + index);
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-goto';
+                    btn.innerHTML = `GOTO ĐIỂM ${letter} <span class="uid-txt">[UID: ${cp.uid}]</span>`;
+                    
+                    // SỰ KIỆN KHI BẤM GOTO
+                    btn.addEventListener('click', () => {
+                        // Tạo hiệu ứng nháy
+                        btn.style.background = "#FF5500";
+                        setTimeout(() => btn.style.background = "", 300);
+
+                        // Gửi lệnh Số qua V3 (A=2001, B=2002, C=2003...) để ESP32 biết điểm đến
+                        let cmdNumeric = 2001 + index;
+                        if (actionV3) eraWidget.triggerAction(actionV3.action, null, { value: cmdNumeric });
+                    });
+                    gotoListDiv.appendChild(btn);
+                });
+            }
+        }
+
+        // --- CÁC SỰ KIỆN NÚT BẤM AUTO ---
+        
+        // Thêm điểm vào mảng tạm
+        document.getElementById('btnAdd').addEventListener('click', () => {
+            const uid = uidInput.value.trim();
+            if (uid === "") return alert("Vui lòng nhập UID!");
+            
+            // Lấy danh sách hiện tại để nối tiếp
+            let currentList = tempCheckpoints.length > 0 ? tempCheckpoints : [...savedCheckpoints];
+            currentList.push({ uid: uid });
+            tempCheckpoints = currentList;
+            
+            uidInput.value = ""; // Làm sạch ô nhập
+            renderUI();
+        });
+
+        // Lưu Dữ Liệu
+        document.getElementById('btnSave').addEventListener('click', () => {
+            if (tempCheckpoints.length > 0) {
+                savedCheckpoints = [...tempCheckpoints];
+                localStorage.setItem('AGV_Checkpoints', JSON.stringify(savedCheckpoints));
+                tempCheckpoints = []; // Xóa tạm
+                alert("Đã lưu lộ trình thành công!");
+                renderUI();
+            } else {
+                alert("Bạn chưa thêm điểm mới nào!");
+            }
+        });
+
+        // Reset
+        document.getElementById('btnReset').addEventListener('click', () => {
+            if(confirm("Bạn có chắc muốn xóa toàn bộ điểm đã thiết lập? AGV sẽ không còn điểm để Goto.")) {
+                tempCheckpoints = [];
+                savedCheckpoints = [];
+                localStorage.removeItem('AGV_Checkpoints');
+                renderUI();
+            }
+        });
+
+        // --- CHUYỂN CHẾ ĐỘ MANUAL / AUTO ---
+        const autoPanel = document.getElementById('autoPanel');
+        const manualPanel = document.getElementById('manualPanel');
+        const btnManual = document.getElementById('btnManual');
+        const btnAuto = document.getElementById('btnAuto');
+
+        btnManual.addEventListener('click', () => {
+            btnManual.classList.add('active-manual');
+            btnAuto.classList.remove('active-auto');
+            autoPanel.classList.remove('show');
+            manualPanel.classList.remove('hidden');
+            if (actionV3) eraWidget.triggerAction(actionV3.action, null, { value: 1000 }); // Mode Manual
+        });
+
+        btnAuto.addEventListener('click', () => {
+            btnAuto.classList.add('active-auto');
+            btnManual.classList.remove('active-manual');
+            autoPanel.classList.add('show');
+            manualPanel.classList.add('hidden');
+            renderUI();
+            if (actionV3) eraWidget.triggerAction(actionV3.action, null, { value: 2000 }); // Mode Auto Standby
+        });
+
+        // --- ĐIỀU KHIỂN TAY MANUAL ---
+        function sendV1(v) { document.getElementById('labelRight').textContent = v; if(actionV1) eraWidget.triggerAction(actionV1.action, null, {value: v}); }
+        function sendV2(v) { document.getElementById('labelLeft').textContent = v; if(actionV2) eraWidget.triggerAction(actionV2.action, null, {value: v}); }
+
+        const bindBtn = (id, vDown, vUp, func) => {
+            const b = document.getElementById(id);
+            b.addEventListener('pointerdown', () => func(vDown));
+            b.addEventListener('pointerup', () => func(vUp));
+            b.addEventListener('pointerleave', () => func(vUp));
+        };
+
+        bindBtn('btnUp', 2025, 1494, sendV1);
+        bindBtn('btnDown', 1027, 1494, sendV1);
+        bindBtn('btnLeft', 987, 1497, sendV2);
+        bindBtn('btnRight', 1983, 1497, sendV2);
+
+        // Khởi tạo
+        renderUI();
+    </script>
 </body>
 </html>
