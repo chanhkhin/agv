@@ -28,13 +28,7 @@
 
         /* ================= BỐ CỤC CHUNG ================= */
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        
-        /* Cho phép cuộn trên mobile, cố định trên PC */
-        body { 
-            margin: 0; padding: 12px; min-height: 100vh; overflow-x: hidden; overflow-y: auto; 
-            background-color: var(--bg-main); color: var(--text-main); 
-            display: flex; flex-direction: column; gap: 12px; user-select: none; -webkit-user-select: none; transition: background-color 0.3s; 
-        }
+        body { margin: 0; padding: 12px; min-height: 100vh; overflow-x: hidden; overflow-y: auto; background-color: var(--bg-main); color: var(--text-main); display: flex; flex-direction: column; gap: 12px; user-select: none; -webkit-user-select: none; transition: background-color 0.3s; }
 
         @media (min-width: 900px) {
             body { display: grid; grid-template-rows: 55px 1fr 180px; height: 100vh; overflow: hidden; }
@@ -50,7 +44,11 @@
         .status-badge.running { background: var(--success); }
         .status-badge.stopped { background: var(--warning); color: #000; }
         .status-badge.error { background: var(--danger); animation: blink 1s infinite; }
+        .status-badge.waiting { background: #9b59b6; animation: pulse 1.5s infinite; } /* Trạng thái chờ lệnh */
+        
         @keyframes blink { 50% { opacity: 0.5; } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
         .btn-estop { background: var(--danger); color: white; border: 2px solid #ff4757; padding: 6px 18px; border-radius: 6px; font-size: 14px; font-weight: 900; cursor: pointer; transition: 0.2s;}
         .btn-estop:active { transform: scale(0.92); opacity: 0.8;}
         .time-box { text-align: right; font-size: 11px; color: rgba(255,255,255,0.7); }
@@ -78,11 +76,7 @@
         .auto-layout { display: flex; flex-direction: column; gap: 16px; flex: 1;}
         @media (min-width: 600px) { .auto-layout { display: grid; grid-template-columns: 1fr 280px; } }
         
-        .map-area { 
-            background-color: var(--bg-panel); min-height: 250px;
-            background-image: linear-gradient(var(--map-grid) 1px, transparent 1px), linear-gradient(90deg, var(--map-grid) 1px, transparent 1px);
-            background-size: 20px 20px; border-radius: 8px; border: 2px solid var(--border); position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;
-        }
+        .map-area { background-color: var(--bg-panel); min-height: 250px; background-image: linear-gradient(var(--map-grid) 1px, transparent 1px), linear-gradient(90deg, var(--map-grid) 1px, transparent 1px); background-size: 20px 20px; border-radius: 8px; border: 2px solid var(--border); position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;}
         .map-node { cursor: pointer; transition: 0.2s; }
         .map-node:hover circle { stroke-width: 5; fill: rgba(9, 132, 227, 0.1); }
         .map-node text { pointer-events: none; }
@@ -90,11 +84,17 @@
         .route-controls { display: flex; flex-direction: column; gap: 12px; }
         .btn-goline { background: linear-gradient(135deg, var(--accent), #00a8ff); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer; transition: 0.2s;}
         .btn-goline.active { background: linear-gradient(135deg, #f39c12, #f1c40f); color: #000; }
+        .btn-goline.waiting { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; animation: pulse 1.5s infinite;} /* Trạng thái nút chờ */
+        .btn-goline.locked { background: var(--border); color: var(--text-muted); cursor: not-allowed; } /* Bị khóa khi đang chạy Map */
         
         .input-row { display: flex; gap: 8px; }
-        .input-row input { flex: 1; padding: 10px; border-radius: 6px; border: 2px solid var(--border); background: var(--bg-main); color: var(--text-main); text-align: center; font-weight: bold; }
-        .input-row button { background: var(--success); color: white; border: none; padding: 0 18px; border-radius: 6px; font-weight: 900; font-size: 20px; cursor: pointer;}
+        .input-row input { flex: 1; padding: 10px; border-radius: 6px; border: 2px solid var(--border); background: var(--bg-main); color: var(--text-main); text-align: center; font-weight: bold; transition: 0.3s;}
+        .input-row button { background: var(--success); color: white; border: none; padding: 0 18px; border-radius: 6px; font-weight: 900; font-size: 20px; cursor: pointer; transition: 0.3s;}
         
+        /* Hiệu ứng nhấp nháy nhắc người dùng lưu điểm */
+        @keyframes flashBtn { 0%, 100% { box-shadow: 0 0 0px var(--success); transform: scale(1);} 50% { box-shadow: 0 0 15px var(--success); transform: scale(1.05); background: var(--warning); color: #000;} }
+        .flash-add { animation: flashBtn 1s infinite !important; }
+
         #pointList { flex: 1; overflow-y: auto; max-height: 150px; display: flex; flex-direction: column; gap: 8px; }
         .point-btn { background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; position: relative; border-left: 5px solid var(--border);}
         .point-btn .p-title { font-weight: 800; font-size: 14px; color: var(--text-main); margin-bottom: 2px;}
@@ -112,7 +112,6 @@
         .saved-maps-area.show { display: block; }
         .map-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-panel); border-radius: 6px; font-weight: bold; border-left: 4px solid var(--accent); box-shadow: 0 2px 4px var(--shadow);}
         
-        /* CÔNG TẮC BẬT TẮT CHẠY MAP */
         .switch-container { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);}
         .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
         .switch input { opacity: 0; width: 0; height: 0; }
@@ -121,17 +120,15 @@
         input:checked + .slider { background-color: var(--success); }
         input:checked + .slider:before { transform: translateX(18px); }
 
-        /* ================= FOOTER ================= */
+        /* ================= FOOTER & GAUGES ================= */
         .footer-workspace { display: flex; flex-direction: column; gap: 12px; }
         @media (min-width: 600px) { .footer-workspace { display: grid; grid-template-columns: 1fr 1fr; } }
-        
         .gauges-area { display: flex; justify-content: space-around; align-items: center; padding: 10px 0;}
         .gauge-container { display: flex; flex-direction: column; align-items: center; width: 120px; position: relative;}
         .gauge-title { font-size: 12px; font-weight: 800; color: var(--text-muted); margin-bottom: -10px; z-index: 2;}
         .gauge { position: relative; width: 120px; height: 60px; overflow: hidden; margin-top: 15px;}
         .gauge-bg { position: absolute; top: 0; left: 0; width: 120px; height: 120px; border-radius: 50%; border: 10px solid var(--gauge-track); }
         .gauge-fill { position: absolute; top: 0; left: 0; width: 120px; height: 120px; border-radius: 50%; border: 10px solid transparent; border-bottom-color: var(--accent); border-left-color: var(--accent); transform: rotate(-45deg); transition: transform 0.4s, border-color 0.4s;}
-        
         .gauge-val-box { position: absolute; bottom: -5px; width: 100%; text-align: center; }
         .gauge-val { font-size: 24px; font-weight: 900; color: var(--text-main); font-family: monospace; line-height: 1;}
         .gauge-unit { font-size: 10px; color: var(--text-muted); font-weight: 700;}
@@ -209,7 +206,7 @@
                     <button id="btnGoLine" class="btn-goline">▶ BẮT ĐẦU GO LINE</button>
                     <div class="input-row">
                         <input type="text" id="uidInput" placeholder="Nhập / Quét UID">
-                        <button id="btnAddPoint">+</button>
+                        <button id="btnAddPoint" title="Lưu điểm này">+</button>
                     </div>
                     <div id="pointList"></div>
                     <div class="bottom-actions">
@@ -275,58 +272,46 @@
         let configUID, configWifi, configVolt, configAmp, configPWML, configPWMR; 
         
         let savedCheckpoints = JSON.parse(localStorage.getItem('AGV_Checkpoints')) || [];
-        let systemState = 'stopped';
+        let systemState = 'stopped'; // states: stopped, running, error, waiting
         let mapPoints = [];
         let controlSource = 'WEB';
         let targetUID = null;
 
         const statusBadge = document.getElementById('sysStatus');
         const uidInput = document.getElementById('uidInput');
+        const btnAddPoint = document.getElementById('btnAddPoint');
+        const btnGoLine = document.getElementById('btnGoLine');
         const pointListDiv = document.getElementById('pointList');
         const svgMap = document.getElementById('svgMap');
         const agvIcon = document.getElementById('agvIcon');
         const interZone = document.getElementById('interZone');
         const toggleAutoRoute = document.getElementById('toggleAutoRoute');
 
-        // ================= HÀM ĐỒNG BỘ MAP VÀO ESP32 =================
         function syncMapToESP() {
-            // Lưu tạm vào trình duyệt
             localStorage.setItem('AGV_Checkpoints', JSON.stringify(savedCheckpoints));
-            
-            // Nếu đã cấu hình chân V14, đóng gói chuỗi JSON và bắn xuống ESP32
             if(actionMapSync) {
                 let mapString = JSON.stringify(savedCheckpoints);
                 eraWidget.triggerAction(actionMapSync.action, null, {value: mapString});
             }
         }
 
-        // Khởi tạo E-Ra Widget
         eraWidget.init({
             onConfiguration: (conf) => {
                 if(conf.actions && conf.actions.length >= 3) { 
                     actionV1 = conf.actions[0]; 
                     actionV2 = conf.actions[1]; 
                     actionV3 = conf.actions[2]; 
-                    if(conf.actions.length >= 6) {
-                        actionV10 = conf.actions[3]; // V10: Base Speed
-                        actionV11 = conf.actions[4]; // V11: Kp
-                        actionV12 = conf.actions[5]; // V12: Kd
-                    }
-                    if(conf.actions.length >= 7) {
-                        actionV13 = conf.actions[6]; // V13: Truyền UID mục tiêu
-                    }
-                    // THÊM CHÂN V14 ĐỂ ĐỒNG BỘ MAP (Action thứ 8)
-                    if(conf.actions.length >= 8) {
-                        actionMapSync = conf.actions[7]; 
-                    }
+                    if(conf.actions.length >= 6) { actionV10 = conf.actions[3]; actionV11 = conf.actions[4]; actionV12 = conf.actions[5]; }
+                    if(conf.actions.length >= 7) actionV13 = conf.actions[6];
+                    if(conf.actions.length >= 8) actionMapSync = conf.actions[7]; 
                 }
                 if(conf.realtime_configs) {
-                    if(conf.realtime_configs.length > 0) configUID = conf.realtime_configs[0]; // V4
-                    if(conf.realtime_configs.length > 1) configWifi = conf.realtime_configs[1]; // V5
-                    if(conf.realtime_configs.length > 2) configVolt = conf.realtime_configs[2]; // V6
-                    if(conf.realtime_configs.length > 3) configAmp = conf.realtime_configs[3];  // V7
-                    if(conf.realtime_configs.length > 4) configPWML = conf.realtime_configs[4]; // V8
-                    if(conf.realtime_configs.length > 5) configPWMR = conf.realtime_configs[5]; // V9
+                    if(conf.realtime_configs.length > 0) configUID = conf.realtime_configs[0];
+                    if(conf.realtime_configs.length > 1) configWifi = conf.realtime_configs[1];
+                    if(conf.realtime_configs.length > 2) configVolt = conf.realtime_configs[2];
+                    if(conf.realtime_configs.length > 3) configAmp = conf.realtime_configs[3];
+                    if(conf.realtime_configs.length > 4) configPWML = conf.realtime_configs[4];
+                    if(conf.realtime_configs.length > 5) configPWMR = conf.realtime_configs[5];
                 }
             },
             onValues: (values) => {
@@ -341,12 +326,10 @@
                 let currentL = null, currentR = null;
                 if (configPWML && values[configPWML.id]) currentL = values[configPWML.id].value;
                 if (configPWMR && values[configPWMR.id]) currentR = values[configPWMR.id].value;
-                
                 if (currentL !== null || currentR !== null) updateGauges(currentL, currentR);
             }
         });
 
-        // Tiện ích Đồng hồ & Đổi nền
         setInterval(() => { 
             const d = new Date(); 
             document.getElementById('clockDate').innerText = d.toLocaleDateString('vi-VN'); 
@@ -362,75 +345,52 @@
         function setStatus(state) {
             systemState = state;
             statusBadge.className = `status-badge ${state}`;
-            statusBadge.innerText = state.toUpperCase();
             
             const valState = document.getElementById('valState');
-            if(state === 'running') { valState.innerText = 'MOVING'; valState.style.color = 'var(--success)'; }
-            else if(state === 'error') { valState.innerText = 'HALTED'; valState.style.color = 'var(--danger)'; }
-            else { valState.innerText = 'STANDBY'; valState.style.color = 'var(--warning)'; }
+            if(state === 'running') { statusBadge.innerText = 'MOVING'; valState.innerText = 'MOVING'; valState.style.color = 'var(--success)'; }
+            else if(state === 'error') { statusBadge.innerText = 'ERROR'; valState.innerText = 'HALTED'; valState.style.color = 'var(--danger)'; }
+            else if(state === 'waiting') { statusBadge.innerText = 'WAITING'; valState.innerText = 'FOUND TAG'; valState.style.color = '#9b59b6'; }
+            else { statusBadge.innerText = 'STOPPED'; valState.innerText = 'STANDBY'; valState.style.color = 'var(--warning)'; }
         }
 
         function updateGauges(pwmL, pwmR) {
             const mapPWM = (val) => { let v = Math.min(255, Math.abs(val)); return -45 + (v / 255) * 180; };
-            const getColor = (val) => { 
-                let v = Math.abs(val); 
-                if(v < 100) return 'var(--success)'; 
-                if(v < 200) return 'var(--warning)'; 
-                return 'var(--danger)'; 
-            };
-
+            const getColor = (val) => { let v = Math.abs(val); if(v < 100) return 'var(--success)'; if(v < 200) return 'var(--warning)'; return 'var(--danger)'; };
             if(pwmL !== null) {
-                const gL = document.getElementById('gaugeL');
-                gL.style.transform = `rotate(${mapPWM(pwmL)}deg)`; 
+                const gL = document.getElementById('gaugeL'); gL.style.transform = `rotate(${mapPWM(pwmL)}deg)`; 
                 gL.style.borderBottomColor = getColor(pwmL); gL.style.borderLeftColor = getColor(pwmL);
-                document.getElementById('valL').innerText = Math.round(Math.abs(pwmL));
-                gL.style.filter = `drop-shadow(0 0 ${Math.abs(pwmL)/20}px ${getColor(pwmL)})`;
+                document.getElementById('valL').innerText = Math.round(Math.abs(pwmL)); gL.style.filter = `drop-shadow(0 0 ${Math.abs(pwmL)/20}px ${getColor(pwmL)})`;
             }
             if(pwmR !== null) {
-                const gR = document.getElementById('gaugeR');
-                gR.style.transform = `rotate(${mapPWM(pwmR)}deg)`; 
+                const gR = document.getElementById('gaugeR'); gR.style.transform = `rotate(${mapPWM(pwmR)}deg)`; 
                 gR.style.borderBottomColor = getColor(pwmR); gR.style.borderLeftColor = getColor(pwmR);
-                document.getElementById('valR').innerText = Math.round(Math.abs(pwmR));
-                gR.style.filter = `drop-shadow(0 0 ${Math.abs(pwmR)/20}px ${getColor(pwmR)})`;
+                document.getElementById('valR').innerText = Math.round(Math.abs(pwmR)); gR.style.filter = `drop-shadow(0 0 ${Math.abs(pwmR)/20}px ${getColor(pwmR)})`;
             }
         }
 
-        // ================= XỬ LÝ MAP ẢO VÀ RFID =================
         function renderMapAndList() {
             pointListDiv.innerHTML = ''; svgMap.innerHTML = ''; mapPoints = [];
-            
             if(savedCheckpoints.length === 0) { 
-                agvIcon.style.opacity = 0; 
-                document.getElementById('savedMapsArea').classList.remove('show');
-                return; 
-            } else {
-                document.getElementById('savedMapsArea').classList.add('show');
-            }
+                agvIcon.style.opacity = 0; document.getElementById('savedMapsArea').classList.remove('show'); return; 
+            } else { document.getElementById('savedMapsArea').classList.add('show'); }
 
             const w = svgMap.clientWidth || 400; const h = svgMap.clientHeight || 300;
             const cx = w / 2; const cy = h / 2; const r = Math.min(w, h) * 0.35;
-
             let polygonPoints = "";
+
             savedCheckpoints.forEach((cp, i) => {
                 const angle = (i / savedCheckpoints.length) * 2 * Math.PI - Math.PI/2;
                 const px = cx + r * Math.cos(angle); const py = cy + r * Math.sin(angle);
                 mapPoints.push({x: px, y: py}); polygonPoints += `${px},${py} `;
 
                 const letter = String.fromCharCode(65 + i);
-                
                 const btn = document.createElement('div');
                 btn.className = 'point-btn'; btn.id = `btnCP_${i}`;
                 btn.innerHTML = `<div class="p-title">${letter}. UID: ${cp.uid.substring(0,6)}...</div><button class="btn-del-point">✕</button>`;
                 
-                // CẬP NHẬT NÚT XÓA: Gọi hàm syncMapToESP()
                 btn.onclick = (e) => {
                     if(e.target.classList.contains('btn-del-point')) {
-                        if(confirm(`Xóa Điểm ${letter}?`)) { 
-                            savedCheckpoints.splice(i, 1); 
-                            syncMapToESP();        // <-- Đã thêm tính năng đồng bộ
-                            renderMapAndList(); 
-                        }
-                        return;
+                        if(confirm(`Xóa Điểm ${letter}?`)) { savedCheckpoints.splice(i, 1); syncMapToESP(); renderMapAndList(); } return;
                     }
                     gotoPoint(i);
                 };
@@ -440,15 +400,11 @@
                 group.setAttribute("class", "map-node"); group.onclick = () => gotoPoint(i);
 
                 const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                circle.setAttribute("id", `svgCircle_${i}`);
-                circle.setAttribute("cx", px); circle.setAttribute("cy", py); circle.setAttribute("r", "14"); 
+                circle.setAttribute("id", `svgCircle_${i}`); circle.setAttribute("cx", px); circle.setAttribute("cy", py); circle.setAttribute("r", "14"); 
                 circle.setAttribute("fill", "var(--bg-panel)"); circle.setAttribute("stroke", "var(--accent)"); circle.setAttribute("stroke-width", "3");
                 
                 const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                text.setAttribute("x", px); text.setAttribute("y", py + 4); 
-                text.setAttribute("fill", "var(--text-main)"); text.setAttribute("font-weight", "900"); text.setAttribute("font-size", "13px");
-                text.setAttribute("text-anchor", "middle"); text.textContent = letter;
-                
+                text.setAttribute("x", px); text.setAttribute("y", py + 4); text.setAttribute("fill", "var(--text-main)"); text.setAttribute("font-weight", "900"); text.setAttribute("font-size", "13px"); text.setAttribute("text-anchor", "middle"); text.textContent = letter;
                 group.appendChild(circle); group.appendChild(text); svgMap.appendChild(group);
             });
 
@@ -462,14 +418,48 @@
             if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 16) + 'px'; agvIcon.style.top = (mapPoints[index].y - 16) + 'px'; }
         }
 
+        // ================= LOGIC MỚI XỬ LÝ QUÉT THẺ =================
+        function handleScanRFID(rfid) {
+            // Hiển thị UID lên màn hình và tạo hiệu ứng nhấp nháy cho nút "+"
+            uidInput.value = rfid; 
+            uidInput.style.borderColor = "var(--success)"; setTimeout(() => uidInput.style.borderColor = "var(--border)", 500);
+            btnAddPoint.classList.add('flash-add'); // Bật nhấp nháy nút cộng
+
+            // Nếu ĐANG TRONG CHẾ ĐỘ DẠY MAP (Không bật chạy tự động)
+            if (!toggleAutoRoute.checked) {
+                setStatus('waiting'); // Xe dừng lại chờ lệnh
+                btnGoLine.className = "btn-goline waiting";
+                btnGoLine.innerHTML = "▶ TIẾP TỤC (Bỏ qua thẻ)"; // Đổi nút để đi tiếp
+            } 
+            // Nếu ĐANG BẬT CHẠY MAP THEO ĐIỂM
+            else {
+                // Di chuyển icon trên bản đồ nếu rfid trùng checkpoint
+                savedCheckpoints.forEach((cp, index) => {
+                    if(cp.uid === rfid) moveAGVTo(index); 
+                });
+
+                // Kiểm tra xem thẻ này có phải là thẻ MỤC TIÊU không
+                if (rfid === targetUID && systemState === 'running') {
+                    setStatus('stopped'); // Đã tới đích -> Dừng lại
+                    btnGoLine.className = "btn-goline locked";
+                    btnGoLine.innerHTML = "ĐÃ TỚI ĐÍCH";
+                    
+                    // Hiệu ứng xanh lá cho điểm tới đích
+                    savedCheckpoints.forEach((cp, index) => {
+                        if(cp.uid === rfid) {
+                            document.getElementById(`btnCP_${index}`).classList.replace('target', 'arrived');
+                            const tc = document.getElementById(`svgCircle_${index}`);
+                            if(tc) { tc.setAttribute("stroke", "var(--success)"); tc.setAttribute("fill", "rgba(0, 184, 148, 0.3)"); }
+                        }
+                    });
+                }
+            }
+        }
+
         function gotoPoint(index) {
             if(systemState === 'error') return alert("Nhả Nút Dừng Khẩn Cấp!");
             if(controlSource !== 'WEB') return alert("Chuyển quyền sang WEB để điều khiển Tự Động!");
-            
-            if(!toggleAutoRoute.checked) {
-                moveAGVTo(index);
-                return;
-            }
+            if(!toggleAutoRoute.checked) return alert("Vui lòng BẬT công tắc 'CHẠY MAP' trước khi chọn điểm đến!");
 
             targetUID = savedCheckpoints[index].uid;
             if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: targetUID});
@@ -485,63 +475,73 @@
             if(targetCircle) { targetCircle.setAttribute("stroke", "var(--warning)"); targetCircle.setAttribute("fill", "rgba(253, 203, 110, 0.3)"); }
             
             setStatus('running'); 
+            btnGoLine.className = "btn-goline locked";
+            btnGoLine.innerHTML = "ĐANG CHẠY TỚI ĐIỂM...";
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
         }
 
-        function handleScanRFID(rfid) {
-            uidInput.value = rfid; uidInput.style.borderColor = "var(--success)"; setTimeout(() => uidInput.style.borderColor = "var(--border)", 500);
+        // ================= CẬP NHẬT NÚT GO LINE =================
+        btnGoLine.onclick = function() {
+            if(systemState === 'error') return;
+            if(controlSource !== 'WEB') return alert("Vui lòng chuyển sang WEB (E-RA) để chạy Tự động!");
             
-            savedCheckpoints.forEach((cp, index) => {
-                if(cp.uid === rfid) moveAGVTo(index); 
-            });
-
-            if (systemState === 'running') {
-                setStatus('stopped');
-                savedCheckpoints.forEach((cp, index) => {
-                    if(cp.uid === rfid) {
-                        document.getElementById(`btnCP_${index}`).classList.replace('target', 'arrived');
-                        const tc = document.getElementById(`svgCircle_${index}`);
-                        if(tc) { tc.setAttribute("stroke", "var(--success)"); tc.setAttribute("fill", "rgba(0, 184, 148, 0.3)"); }
-                    }
-                });
+            // 1. Chặn bấm nếu đang bật chế độ CHẠY MAP (chỉ được phép chọn điểm)
+            if(toggleAutoRoute.checked) {
+                return alert("Đang bật CHẠY MAP! Vui lòng nhấp thẳng vào các điểm A, B, C trên bản đồ để xe chạy tới đó.");
             }
-        }
+
+            if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); // Hủy target
+
+            // 2. Nếu xe đang chờ lệnh (vừa tìm thấy thẻ khi dạy Map)
+            if (systemState === 'waiting') {
+                setStatus('running');
+                this.className = "btn-goline active";
+                this.innerHTML = "⏸ TẠM DỪNG";
+                if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); // Gửi lệnh đi tiếp
+                return;
+            }
+
+            // 3. Logic Bắt đầu / Dừng thông thường
+            const isRun = this.classList.toggle('active');
+            if(isRun) { 
+                this.innerHTML = "⏸ TẠM DỪNG"; setStatus('running'); 
+                if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
+            } else { 
+                this.innerHTML = "▶ BẮT ĐẦU GO LINE"; setStatus('stopped'); 
+                if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2000}); 
+            }
+        };
+
+        // Khi bật/tắt công tắc CHẠY MAP
+        toggleAutoRoute.addEventListener('change', function() {
+            if(this.checked) {
+                btnGoLine.className = "btn-goline locked";
+                btnGoLine.innerHTML = "CHỌN ĐIỂM ĐẾN TRÊN BẢN ĐỒ";
+                if(systemState === 'running') btnGoLine.click(); // Tạm dừng xe nếu đang chạy
+            } else {
+                btnGoLine.className = "btn-goline";
+                btnGoLine.innerHTML = "▶ BẮT ĐẦU GO LINE";
+                targetUID = null;
+                if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""});
+                document.querySelectorAll('.point-btn').forEach(b => b.classList.remove('target', 'arrived'));
+                for(let i=0; i<savedCheckpoints.length; i++) {
+                    const c = document.getElementById(`svgCircle_${i}`);
+                    if(c) { c.setAttribute("stroke", "var(--accent)"); c.setAttribute("fill", "var(--bg-panel)"); }
+                }
+            }
+        });
 
         // ================= XỬ LÝ ĐIỀU KHIỂN THỦ CÔNG =================
-        function sendV1(value) {
-            if(systemState === 'error' || controlSource !== 'WEB') return;
-            setStatus(value === 1494 ? 'stopped' : 'running');
-            if (actionV1) eraWidget.triggerAction(actionV1.action, null, { value: value });
-        }
+        function sendV1(value) { if(systemState === 'error' || controlSource !== 'WEB') return; setStatus(value === 1494 ? 'stopped' : 'running'); if (actionV1) eraWidget.triggerAction(actionV1.action, null, { value: value }); }
+        function sendV2(value) { if(systemState === 'error' || controlSource !== 'WEB') return; setStatus(value === 1497 ? 'stopped' : 'running'); if (actionV2) eraWidget.triggerAction(actionV2.action, null, { value: value }); }
 
-        function sendV2(value) {
-            if(systemState === 'error' || controlSource !== 'WEB') return;
-            setStatus(value === 1497 ? 'stopped' : 'running');
-            if (actionV2) eraWidget.triggerAction(actionV2.action, null, { value: value });
-        }
+        const btnUp = document.getElementById('btnUp'); const btnDown = document.getElementById('btnDown'); const btnLeft = document.getElementById('btnLeft'); const btnRight = document.getElementById('btnRight');
+        const centerV1 = 1494; const centerV2 = 1497;
 
-        const btnUp = document.getElementById('btnUp');
-        const btnDown = document.getElementById('btnDown');
-        const btnLeft = document.getElementById('btnLeft');
-        const btnRight = document.getElementById('btnRight');
-        const centerV1 = 1494; 
-        const centerV2 = 1497;
-
-        btnUp.addEventListener('pointerdown', () => { btnUp.classList.add('active'); sendV1(2025); });
-        btnUp.addEventListener('pointerup', () => { btnUp.classList.remove('active'); sendV1(centerV1); });
-        btnUp.addEventListener('pointerleave', () => { btnUp.classList.remove('active'); sendV1(centerV1); });
-
-        btnDown.addEventListener('pointerdown', () => { btnDown.classList.add('active'); sendV1(1027); });
-        btnDown.addEventListener('pointerup', () => { btnDown.classList.remove('active'); sendV1(centerV1); });
-        btnDown.addEventListener('pointerleave', () => { btnDown.classList.remove('active'); sendV1(centerV1); });
-
-        btnLeft.addEventListener('pointerdown', () => { btnLeft.classList.add('active'); sendV2(987); });
-        btnLeft.addEventListener('pointerup', () => { btnLeft.classList.remove('active'); sendV2(centerV2); });
-        btnLeft.addEventListener('pointerleave', () => { btnLeft.classList.remove('active'); sendV2(centerV2); });
-
-        btnRight.addEventListener('pointerdown', () => { btnRight.classList.add('active'); sendV2(1983); });
-        btnRight.addEventListener('pointerup', () => { btnRight.classList.remove('active'); sendV2(centerV2); });
-        btnRight.addEventListener('pointerleave', () => { btnRight.classList.remove('active'); sendV2(centerV2); });
+        btnUp.addEventListener('pointerdown', () => { btnUp.classList.add('active'); sendV1(2025); }); btnUp.addEventListener('pointerup', () => { btnUp.classList.remove('active'); sendV1(centerV1); }); btnUp.addEventListener('pointerleave', () => { btnUp.classList.remove('active'); sendV1(centerV1); });
+        btnDown.addEventListener('pointerdown', () => { btnDown.classList.add('active'); sendV1(1027); }); btnDown.addEventListener('pointerup', () => { btnDown.classList.remove('active'); sendV1(centerV1); }); btnDown.addEventListener('pointerleave', () => { btnDown.classList.remove('active'); sendV1(centerV1); });
+        btnLeft.addEventListener('pointerdown', () => { btnLeft.classList.add('active'); sendV2(987); }); btnLeft.addEventListener('pointerup', () => { btnLeft.classList.remove('active'); sendV2(centerV2); }); btnLeft.addEventListener('pointerleave', () => { btnLeft.classList.remove('active'); sendV2(centerV2); });
+        btnRight.addEventListener('pointerdown', () => { btnRight.classList.add('active'); sendV2(1983); }); btnRight.addEventListener('pointerup', () => { btnRight.classList.remove('active'); sendV2(centerV2); }); btnRight.addEventListener('pointerleave', () => { btnRight.classList.remove('active'); sendV2(centerV2); });
 
         const keys = { w: false, a: false, s: false, d: false };
         document.addEventListener('keydown', (e) => {
@@ -549,13 +549,10 @@
             const k = e.key.toLowerCase();
             if(keys.hasOwnProperty(k) && !keys[k]) {
                 keys[k] = true;
-                if(k==='w') { btnUp.classList.add('active'); sendV1(2025); }
-                if(k==='s') { btnDown.classList.add('active'); sendV1(1027); }
-                if(k==='a') { btnLeft.classList.add('active'); sendV2(987); }
-                if(k==='d') { btnRight.classList.add('active'); sendV2(1983); }
+                if(k==='w') { btnUp.classList.add('active'); sendV1(2025); } if(k==='s') { btnDown.classList.add('active'); sendV1(1027); }
+                if(k==='a') { btnLeft.classList.add('active'); sendV2(987); } if(k==='d') { btnRight.classList.add('active'); sendV2(1983); }
             }
         });
-        
         document.addEventListener('keyup', (e) => {
             const k = e.key.toLowerCase();
             if(keys.hasOwnProperty(k)) {
@@ -565,58 +562,26 @@
             }
         });
 
-        const btnWeb = document.getElementById('btnCtrlWeb');
-        const btnRC = document.getElementById('btnCtrlRC');
-        
-        btnWeb.addEventListener('click', () => {
-            controlSource = 'WEB'; btnWeb.classList.add('active'); btnRC.classList.remove('active');
-            interZone.classList.remove('disabled');
-            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 1000});
-        });
-        
-        btnRC.addEventListener('click', () => {
-            controlSource = 'RC'; btnRC.classList.add('active'); btnWeb.classList.remove('active');
-            interZone.classList.add('disabled');
-            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 3000});
-        });
+        const btnWeb = document.getElementById('btnCtrlWeb'); const btnRC = document.getElementById('btnCtrlRC');
+        btnWeb.addEventListener('click', () => { controlSource = 'WEB'; btnWeb.classList.add('active'); btnRC.classList.remove('active'); interZone.classList.remove('disabled'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 1000}); });
+        btnRC.addEventListener('click', () => { controlSource = 'RC'; btnRC.classList.add('active'); btnWeb.classList.remove('active'); interZone.classList.add('disabled'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 3000}); });
 
-        // CẬP NHẬT NÚT THÊM, LƯU VÀ XÓA HẾT ĐỂ GỌI HÀM ĐỒNG BỘ
-        document.getElementById('btnAddPoint').onclick = () => {
+        btnAddPoint.onclick = () => {
             const uid = uidInput.value.trim(); if(!uid) return alert("Quét thẻ hoặc nhập UID!");
-            savedCheckpoints.push({uid: uid}); uidInput.value = ""; 
-            syncMapToESP();        // <-- Đồng bộ sau khi thêm
-            renderMapAndList();
+            savedCheckpoints.push({uid: uid}); 
+            uidInput.value = ""; 
+            btnAddPoint.classList.remove('flash-add'); // Tắt hiệu ứng nhấp nháy sau khi đã lưu
+            syncMapToESP(); renderMapAndList();
         };
         
-        document.getElementById('btnSave').onclick = () => { 
-            syncMapToESP();        // <-- Đồng bộ thủ công
-            renderMapAndList(); 
-            alert("Đã đồng bộ Map xuống ESP32!"); 
-        };
-        
-        document.getElementById('btnReset').onclick = () => { 
-            if(confirm("Xóa toàn bộ bản đồ?")) { 
-                savedCheckpoints = []; 
-                syncMapToESP();    // <-- Đồng bộ xóa mảng rỗng xuống ESP32
-                renderMapAndList(); 
-            }
-        };
-        
-        document.getElementById('btnGoLine').onclick = function() {
-            if(systemState === 'error') return;
-            if(controlSource !== 'WEB') return alert("Vui lòng chuyển sang WEB (E-RA) để chạy Tự động!");
-            
-            if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); 
-
-            const isRun = this.classList.toggle('active');
-            if(isRun) { this.innerHTML = "⏸ TẠM DỪNG"; setStatus('running'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); } 
-            else { this.innerHTML = "▶ BẮT ĐẦU GO LINE"; setStatus('stopped'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2000}); }
-        };
+        document.getElementById('btnSave').onclick = () => { syncMapToESP(); renderMapAndList(); alert("Đã đồng bộ Map xuống ESP32!"); };
+        document.getElementById('btnReset').onclick = () => { if(confirm("Xóa toàn bộ bản đồ?")) { savedCheckpoints = []; syncMapToESP(); renderMapAndList(); }};
 
         document.getElementById('btnEStop').onclick = () => {
             setStatus('error'); updateGauges(0, 0); targetUID = null;
             if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); 
-            document.getElementById('btnGoLine').classList.remove('active'); document.getElementById('btnGoLine').innerHTML = "▶ BẮT ĐẦU GO LINE";
+            btnGoLine.className = "btn-goline"; btnGoLine.innerHTML = "▶ BẮT ĐẦU GO LINE";
+            if(toggleAutoRoute.checked) { toggleAutoRoute.checked = false; toggleAutoRoute.dispatchEvent(new Event('change')); } // Tắt chạy map nếu đang bật
             if(actionV1) eraWidget.triggerAction(actionV1.action, null, {value: 1494});
             if(actionV2) eraWidget.triggerAction(actionV2.action, null, {value: 1497});
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 9999});
@@ -626,15 +591,9 @@
         document.getElementById('btnTune').onclick = () => document.getElementById('modalPID').classList.add('show');
         document.getElementById('btnCancelPID').onclick = () => document.getElementById('modalPID').classList.remove('show');
         document.getElementById('btnSavePID').onclick = () => { 
-            const spd = parseInt(document.getElementById('inpSpd').value);
-            const kp = parseFloat(document.getElementById('inpKp').value);
-            const kd = parseFloat(document.getElementById('inpKd').value);
-            if(actionV10) eraWidget.triggerAction(actionV10.action, null, {value: spd});
-            if(actionV11) eraWidget.triggerAction(actionV11.action, null, {value: kp});
-            if(actionV12) eraWidget.triggerAction(actionV12.action, null, {value: kd});
-            
-            alert("Đã đẩy thông số PID xuống ESP32!"); 
-            document.getElementById('modalPID').classList.remove('show'); 
+            const spd = parseInt(document.getElementById('inpSpd').value); const kp = parseFloat(document.getElementById('inpKp').value); const kd = parseFloat(document.getElementById('inpKd').value);
+            if(actionV10) eraWidget.triggerAction(actionV10.action, null, {value: spd}); if(actionV11) eraWidget.triggerAction(actionV11.action, null, {value: kp}); if(actionV12) eraWidget.triggerAction(actionV12.action, null, {value: kd});
+            alert("Đã đẩy thông số PID xuống ESP32!"); document.getElementById('modalPID').classList.remove('show'); 
         };
 
         window.addEventListener('resize', renderMapAndList);
