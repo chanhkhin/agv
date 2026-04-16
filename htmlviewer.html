@@ -3,310 +3,643 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AGV Smart Control</title>
+    <title>AGV Smart Warehouse HMI - Pro Edition</title>
     <script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
     <style>
+        /* ================= CẤU HÌNH MÀU SẮC (THEMES) ================= */
+        :root {
+            --bg-main: #eef2f5; --bg-panel: #ffffff; --text-main: #2d3436; --text-muted: #636e72;
+            --border: #dcdde1; --accent: #0984e3; --success: #00b894; --warning: #fdcb6e;
+            --danger: #ff7675; --shadow: rgba(0, 0, 0, 0.08); --map-grid: rgba(9, 132, 227, 0.1);
+            --gauge-track: #f1f2f6; --header-bg: linear-gradient(135deg, #0984e3, #6c5ce7);
+            --header-text: #ffffff; --box-wifi: #e3f2fd; --txt-wifi: #0984e3;
+            --box-stat: #e8f8f5; --txt-stat: #00b894; --box-volt: #fff3e0; --txt-volt: #e67e22;
+            --box-amp:  #fff9c4; --txt-amp:  #d35400;
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #181b21; --bg-panel: #22262e; --text-main: #f5f6fa; --text-muted: #7f8fa6;
+            --border: #353b48; --accent: #48dbfb; --shadow: rgba(0, 0, 0, 0.3); --map-grid: rgba(72, 219, 251, 0.05);
+            --gauge-track: #2f3542; --header-bg: linear-gradient(135deg, #2d3436, #192a56);
+            --header-text: #48dbfb; --box-wifi: rgba(9, 132, 227, 0.15); --txt-wifi: #74b9ff;
+            --box-stat: rgba(0, 184, 148, 0.15); --txt-stat: #55efc4; --box-volt: rgba(230, 126, 34, 0.15);--txt-volt: #fab1a0;
+            --box-amp:  rgba(253, 203, 110, 0.15);--txt-amp: #ffeaa7;
+        }
+
+        /* ================= BỐ CỤC CHUNG ================= */
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        
+        /* Cho phép cuộn trên mobile, cố định trên PC */
         body { 
-            font-family: 'Segoe UI', sans-serif; background: #121212; color: white; 
-            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
-            user-select: none; -webkit-user-select: none; touch-action: none;
+            margin: 0; padding: 12px; min-height: 100vh; overflow-x: hidden; overflow-y: auto; 
+            background-color: var(--bg-main); color: var(--text-main); 
+            display: flex; flex-direction: column; gap: 12px; user-select: none; -webkit-user-select: none; transition: background-color 0.3s; 
         }
-        .header { text-align: center; padding: 15px; color: #00ffcc; font-weight: bold; font-size: 20px;}
+
+        @media (min-width: 900px) {
+            body { display: grid; grid-template-rows: 55px 1fr 180px; height: 100vh; overflow: hidden; }
+            .workspace { display: grid !important; grid-template-columns: 280px 1fr; height: 100%; min-height: 0; }
+        }
+
+        /* ================= HEADER ================= */
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--header-bg); padding: 10px 20px; border-radius: 8px; box-shadow: 0 4px 15px var(--shadow); }
+        .sys-title { font-size: 20px; font-weight: 900; letter-spacing: 1px; color: var(--header-text); text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .sys-title span { color: #ffeaa7; }
+        .sys-status-bar { display: flex; align-items: center; gap: 15px; }
+        .status-badge { padding: 5px 15px; border-radius: 20px; font-weight: 800; font-size: 12px; background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; }
+        .status-badge.running { background: var(--success); }
+        .status-badge.stopped { background: var(--warning); color: #000; }
+        .status-badge.error { background: var(--danger); animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .btn-estop { background: var(--danger); color: white; border: 2px solid #ff4757; padding: 6px 18px; border-radius: 6px; font-size: 14px; font-weight: 900; cursor: pointer; transition: 0.2s;}
+        .btn-estop:active { transform: scale(0.92); opacity: 0.8;}
+        .time-box { text-align: right; font-size: 11px; color: rgba(255,255,255,0.7); }
+        .time-box .clock { font-size: 16px; font-weight: 800; color: #fff; }
+        .btn-icon { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 6px; padding: 6px 12px; cursor: pointer; transition: 0.2s;}
+
+        /* ================= CÁC BẢNG (PANELS) ================= */
+        .workspace { display: flex; flex-direction: column; gap: 12px; }
+        .panel { background: var(--bg-panel); border-radius: 10px; padding: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: 0 4px 10px var(--shadow);}
+        .panel-header { font-size: 13px; font-weight: 800; color: var(--text-muted); border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;}
+
+        .elegant-toggle { display: inline-flex; background: var(--bg-main); border-radius: 20px; padding: 4px; border: 1px solid var(--border); }
+        .elegant-toggle button { background: transparent; border: none; padding: 5px 15px; font-size: 11px; font-weight: 800; border-radius: 16px; color: var(--text-muted); cursor: pointer; transition: 0.3s; }
+        .elegant-toggle button.active { background: var(--accent); color: white; box-shadow: 0 2px 6px rgba(9, 132, 227, 0.4); }
+
+        /* MANUAL CONTROL */
+        .interactive-zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.3s; padding: 20px 0;}
+        .interactive-zone.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
+        .d-pad { display: grid; grid-template-columns: repeat(3, 65px); grid-gap: 10px; justify-content: center; }
+        .btn-dir { width: 65px; height: 65px; border-radius: 12px; border: 2px solid var(--border); background: var(--bg-main); color: var(--text-muted); font-size: 20px; font-weight: 800; cursor: pointer; transition: 0.1s;}
+        .btn-dir:active, .btn-dir.active { background: var(--accent); color: white; border-color: #00a8ff; transform: translateY(4px); }
+        .empty-cell { visibility: hidden; }
+
+        /* VIRTUAL MAP */
+        .auto-layout { display: flex; flex-direction: column; gap: 16px; flex: 1;}
+        @media (min-width: 600px) { .auto-layout { display: grid; grid-template-columns: 1fr 280px; } }
         
-        .mode-container { display: flex; justify-content: center; gap: 15px; padding: 10px; }
-        .btn-mode {
-            padding: 12px 20px; font-size: 13px; font-weight: bold; border: none; border-radius: 8px;
-            cursor: pointer; background: #333; color: white; transition: 0.3s; flex: 1; max-width: 120px;
+        .map-area { 
+            background-color: var(--bg-panel); min-height: 250px;
+            background-image: linear-gradient(var(--map-grid) 1px, transparent 1px), linear-gradient(90deg, var(--map-grid) 1px, transparent 1px);
+            background-size: 20px 20px; border-radius: 8px; border: 2px solid var(--border); position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;
         }
-        .btn-mode.active-manual { background: #FF5500; }
-        .btn-mode.active-auto { background: #00ffcc; color: black; }
+        .map-node { cursor: pointer; transition: 0.2s; }
+        .map-node:hover circle { stroke-width: 5; fill: rgba(9, 132, 227, 0.1); }
+        .map-node text { pointer-events: none; }
 
-        /* Panel AUTO */
-        .auto-panel {
-            display: none; flex-direction: column; padding: 15px; background: #1e1e1e;
-            margin: 0 15px 10px 15px; border-radius: 15px; border: 1px solid #333; flex: 1; overflow-y: auto;
-        }
-        .auto-panel.show { display: flex; }
-
-        .section-title { font-size: 12px; color: #888; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;}
+        .route-controls { display: flex; flex-direction: column; gap: 12px; }
+        .btn-goline { background: linear-gradient(135deg, var(--accent), #00a8ff); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer; transition: 0.2s;}
+        .btn-goline.active { background: linear-gradient(135deg, #f39c12, #f1c40f); color: #000; }
         
-        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        .uid-input {
-            flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #444;
-            background: #2a2a2a; color: #00ffcc; font-size: 15px; outline: none; transition: 0.3s;
-        }
-        .btn-add {
-            background: #00ffcc; color: black; border: none; border-radius: 8px;
-            padding: 0 20px; font-size: 20px; font-weight: bold; cursor: pointer;
-        }
+        .input-row { display: flex; gap: 8px; }
+        .input-row input { flex: 1; padding: 10px; border-radius: 6px; border: 2px solid var(--border); background: var(--bg-main); color: var(--text-main); text-align: center; font-weight: bold; }
+        .input-row button { background: var(--success); color: white; border: none; padding: 0 18px; border-radius: 6px; font-weight: 900; font-size: 20px; cursor: pointer;}
+        
+        #pointList { flex: 1; overflow-y: auto; max-height: 150px; display: flex; flex-direction: column; gap: 8px; }
+        .point-btn { background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; position: relative; border-left: 5px solid var(--border);}
+        .point-btn .p-title { font-weight: 800; font-size: 14px; color: var(--text-main); margin-bottom: 2px;}
+        .point-btn .p-uid { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+        .btn-del-point { position: absolute; top: 10px; right: 10px; background: rgba(255, 118, 117, 0.1); border: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--danger); cursor: pointer;}
+        .point-btn.target { background: rgba(253, 203, 110, 0.1); border-left-color: var(--warning); border-color: var(--warning); }
+        .point-btn.arrived { background: rgba(16, 172, 132, 0.1); border-left-color: var(--success); border-color: var(--success); }
 
-        .checkpoint-list { 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); 
-            gap: 10px; margin-bottom: 15px; 
-        }
-        .point-card {
-            background: #333; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #444;
-        }
-        .point-card .letter { font-size: 18px; font-weight: bold; color: #00ffcc; display: block; }
-        .point-card .uid-label { font-size: 10px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bottom-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .bottom-actions button { padding: 10px; border: none; border-radius: 6px; font-weight: 800; font-size: 12px; cursor: pointer;}
+        .btn-save { background: var(--border); color: var(--text-main); } .btn-reset { background: var(--border); color: var(--text-main); }
 
-        .action-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        .btn-action { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-save { background: #28a745; color: white; }
-        .btn-reset { background: #dc3545; color: white; }
+        /* THIẾT KẾ PHẦN MAP ĐÃ LƯU */
+        .saved-maps-area { background: var(--bg-main); border-radius: 8px; padding: 10px; border: 1px solid var(--border); margin-top: 10px; display: none; }
+        .saved-maps-area.show { display: block; }
+        .map-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-panel); border-radius: 6px; font-weight: bold; border-left: 4px solid var(--accent); box-shadow: 0 2px 4px var(--shadow);}
+        
+        /* CÔNG TẮC BẬT TẮT CHẠY MAP */
+        .switch-container { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);}
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 22px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(18px); }
 
-        /* Phân cách */
-        .divider { height: 1px; background: #444; margin: 10px 0 20px 0; position: relative; }
-        .divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #1e1e1e; padding: 0 10px; font-size: 12px; color: #888; font-weight: bold; }
+        /* ================= FOOTER ================= */
+        .footer-workspace { display: flex; flex-direction: column; gap: 12px; }
+        @media (min-width: 600px) { .footer-workspace { display: grid; grid-template-columns: 1fr 1fr; } }
+        
+        .gauges-area { display: flex; justify-content: space-around; align-items: center; padding: 10px 0;}
+        .gauge-container { display: flex; flex-direction: column; align-items: center; width: 120px; position: relative;}
+        .gauge-title { font-size: 12px; font-weight: 800; color: var(--text-muted); margin-bottom: -10px; z-index: 2;}
+        .gauge { position: relative; width: 120px; height: 60px; overflow: hidden; margin-top: 15px;}
+        .gauge-bg { position: absolute; top: 0; left: 0; width: 120px; height: 120px; border-radius: 50%; border: 10px solid var(--gauge-track); }
+        .gauge-fill { position: absolute; top: 0; left: 0; width: 120px; height: 120px; border-radius: 50%; border: 10px solid transparent; border-bottom-color: var(--accent); border-left-color: var(--accent); transform: rotate(-45deg); transition: transform 0.4s, border-color 0.4s;}
+        
+        .gauge-val-box { position: absolute; bottom: -5px; width: 100%; text-align: center; }
+        .gauge-val { font-size: 24px; font-weight: 900; color: var(--text-main); font-family: monospace; line-height: 1;}
+        .gauge-unit { font-size: 10px; color: var(--text-muted); font-weight: 700;}
 
-        /* GOTO Section */
-        .goto-list { display: flex; flex-direction: column; gap: 10px; }
-        .btn-goto {
-            background: #17a2b8; color: white; border: none; padding: 15px; border-radius: 10px;
-            font-size: 16px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
-            transition: 0.2s;
-        }
-        .btn-goto:active { transform: scale(0.97); background: #138496; }
-        .btn-goto span.uid-txt { font-size: 12px; opacity: 0.8; font-family: monospace; font-weight: normal; }
-        .no-data-msg { text-align: center; color: #666; font-size: 13px; font-style: italic; }
+        /* TELEMETRY BOXES */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; height: 100%;}
+        .info-box { border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px; box-shadow: 0 2px 6px var(--shadow); transition: 0.3s;}
+        .box-wifi { background: var(--box-wifi); border: 1px solid rgba(9, 132, 227, 0.2); } .box-wifi .i-label, .box-wifi .i-val { color: var(--txt-wifi); }
+        .box-stat { background: var(--box-stat); border: 1px solid rgba(0, 184, 148, 0.2); } .box-stat .i-label, .box-stat .i-val { color: var(--txt-stat); }
+        .box-volt { background: var(--box-volt); border: 1px solid rgba(230, 126, 34, 0.2); } .box-volt .i-label, .box-volt .i-val { color: var(--txt-volt); }
+        .box-amp { background: var(--box-amp); border: 1px solid rgba(211, 84, 0, 0.2); } .box-amp .i-label, .box-amp .i-val { color: var(--txt-amp); }
+        .info-box .i-label { font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 2px;}
+        .info-box .i-val { font-size: 18px; font-weight: 900; font-family: monospace;}
 
-        /* Panel MANUAL */
-        .manual-panel { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
-        .manual-panel.hidden { display: none; }
-        .joy-box { background: #1e1e1e; padding: 15px; border-radius: 20px; border: 1px solid #333; text-align: center; width: 42%; }
-        .val-text { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #00ffcc; font-family: monospace; }
-        .ctrl-btn {
-            background: #444; border: 2px solid #555; color: white; font-size: 14px; font-weight: bold;
-            border-radius: 12px; cursor: pointer; transition: 0.1s; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        .ctrl-btn:active { background: #00ffcc; color: black; transform: scale(0.92); }
-        .pad-horizontal { display: flex; gap: 10px; justify-content: center; }
-        .pad-horizontal .ctrl-btn { width: 65px; height: 50px; }
-        .pad-vertical { display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        .pad-vertical .ctrl-btn { width: 70px; height: 70px; }
+        /* ================= MODAL PID ================= */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(3px);}
+        .modal.show { display: flex; }
+        .modal-content { background: var(--bg-panel); padding: 25px; border-radius: 12px; width: 280px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 1px solid var(--border);}
+        .form-group { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;}
+        .form-group label { font-weight: 700; color: var(--text-muted); font-size: 13px;}
+        .form-group input { width: 70px; padding: 6px; text-align: center; border: 2px solid var(--border); border-radius: 6px; background: var(--bg-main); color: var(--text-main); font-weight: bold;}
+        .modal-btns { display: flex; gap: 10px; margin-top: 25px;}
+        .modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; font-size: 12px;}
     </style>
 </head>
 <body>
 
-    <div class="header">AGV CONTROL CENTER</div>
+    <header>
+        <div class="sys-title">AGV <span>PRO-DASH</span></div>
+        <div class="sys-status-bar">
+            <div id="sysStatus" class="status-badge stopped">STOPPED</div>
+            <button id="btnEStop" class="btn-estop">E-STOP</button>
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <button id="btnTheme" class="btn-icon">🌓</button>
+            <div class="time-box"><div id="clockDate">--/--/----</div><div id="clockTime" class="clock">--:--:--</div></div>
+        </div>
+    </header>
 
-    <div class="mode-container">
-        <button id="btnManual" class="btn-mode active-manual">MANUAL</button>
-        <button id="btnAuto" class="btn-mode">AUTO</button>
-    </div>
-
-    <div id="autoPanel" class="auto-panel">
-        
-        <div class="section-title">1. THIẾT LẬP LỘ TRÌNH</div>
-        <div class="input-group">
-            <input type="text" id="uidInput" class="uid-input" placeholder="Quét hoặc nhập UID...">
-            <button id="btnAdd" class="btn-add">+</button>
+    <div class="workspace">
+        <div class="panel">
+            <div class="panel-header">
+                🕹️ MANUAL CONTROL
+                <div class="elegant-toggle">
+                    <button id="btnCtrlWeb" class="active">WEB</button>
+                    <button id="btnCtrlRC">RC</button>
+                </div>
+            </div>
+            
+            <div class="interactive-zone" id="interZone">
+                <div class="d-pad">
+                    <div class="empty-cell"></div>
+                    <button id="btnUp" class="btn-dir">W</button>
+                    <div class="empty-cell"></div>
+                    <button id="btnLeft" class="btn-dir">A</button>
+                    <button id="btnDown" class="btn-dir">S</button>
+                    <button id="btnRight" class="btn-dir">D</button>
+                </div>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 15px; font-weight: 500;">Bật WEB và gõ phím W A S D để lái.</div>
         </div>
 
-        <div id="checkpointList" class="checkpoint-list"></div>
+        <div class="panel">
+            <div class="panel-header">
+                <span>🗺️ VIRTUAL MAP & ROUTING</span>
+                <button id="btnTune" class="btn-icon" style="padding: 2px 8px; font-size: 11px; font-weight: bold; border-radius: 12px; background: var(--bg-main); color: var(--text-main)">⚙️ TUNING</button>
+            </div>
+            <div class="auto-layout">
+                <div class="map-area">
+                    <svg id="svgMap" width="100%" height="100%" style="position: absolute; top:0; left:0;"></svg>
+                    <div id="agvIcon" style="position: absolute; width: 32px; height: 32px; background: var(--accent); border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 15px rgba(9, 132, 227, 0.5); transition: all 1s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; z-index: 10; pointer-events: none; display: flex; align-items: center; justify-content: center;"><div style="width: 10px; height: 10px; background: white; border-radius: 50%;"></div></div>
+                </div>
 
-        <div class="action-group">
-            <button id="btnSave" class="btn-action btn-save">LƯU DỮ LIỆU</button>
-            <button id="btnReset" class="btn-action btn-reset">RESET</button>
-        </div>
+                <div class="route-controls">
+                    <button id="btnGoLine" class="btn-goline">▶ BẮT ĐẦU GO LINE</button>
+                    <div class="input-row">
+                        <input type="text" id="uidInput" placeholder="Nhập / Quét UID">
+                        <button id="btnAddPoint">+</button>
+                    </div>
+                    <div id="pointList"></div>
+                    <div class="bottom-actions">
+                        <button id="btnSave" class="btn-save">LƯU MAP</button>
+                        <button id="btnReset" class="btn-reset">XÓA HẾT</button>
+                    </div>
 
-        <div class="divider"><span>2. LỆNH ĐIỀU HƯỚNG GOTO</span></div>
-        <div id="gotoList" class="goto-list"></div>
+                    <div id="savedMapsArea" class="saved-maps-area">
+                        <div style="font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">BẢN ĐỒ ĐÃ LƯU</div>
+                        <div class="map-item">
+                            <span>🗺️ MAP 1</span>
+                            <div class="switch-container">
+                                <span id="lblAutoRoute">CHẠY MAP</span>
+                                <label class="switch">
+                                  <input type="checkbox" id="toggleAutoRoute">
+                                  <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
 
-    </div>
-
-    <div id="manualPanel" class="manual-panel">
-        <div class="joy-box">
-            <div class="val-text" id="labelLeft">1497</div>
-            <div class="pad-horizontal">
-                <button id="btnLeft" class="ctrl-btn">TRÁI</button>
-                <button id="btnRight" class="ctrl-btn">PHẢI</button>
+                </div>
             </div>
         </div>
+    </div>
 
-        <div class="joy-box">
-            <div class="val-text" id="labelRight">1494</div>
-            <div class="pad-vertical">
-                <button id="btnUp" class="ctrl-btn">TIẾN</button>
-                <button id="btnDown" class="ctrl-btn">LÙI</button>
+    <div class="footer-workspace">
+        <div class="panel" style="justify-content: center; padding-bottom: 5px;">
+            <div class="panel-header" style="margin-bottom: 0;">⚡ REALTIME PWM FEEDBACK</div>
+            <div class="gauges-area">
+                <div class="gauge-container"><div class="gauge-title">LEFT</div><div class="gauge"><div class="gauge-bg"></div><div id="gaugeL" class="gauge-fill"></div></div><div class="gauge-val-box"><div class="gauge-val" id="valL">0</div><div class="gauge-unit">PWM</div></div></div>
+                <div class="gauge-container"><div class="gauge-title">RIGHT</div><div class="gauge"><div class="gauge-bg"></div><div id="gaugeR" class="gauge-fill"></div></div><div class="gauge-val-box"><div class="gauge-val" id="valR">0</div><div class="gauge-unit">PWM</div></div></div>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-header" style="margin-bottom: 10px;">📊 TELEMETRY</div>
+            <div class="info-grid">
+                <div class="info-box box-wifi"><span class="i-label">📡 Wi-Fi</span><span class="i-val" id="valWifi">-- %</span></div>
+                <div class="info-box box-stat"><span class="i-label">✅ Status</span><span class="i-val" id="valState">OK</span></div>
+                <div class="info-box box-volt"><span class="i-label">⚡ Voltage</span><span class="i-val" id="valVolt">12.6 V</span></div>
+                <div class="info-box box-amp"><span class="i-label">🔋 Current</span><span class="i-val" id="valAmp">1.2 A</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalPID" class="modal">
+        <div class="modal-content">
+            <div class="panel-header" style="border-bottom:none; color:var(--text-main); font-size: 15px;">⚙️ THÔNG SỐ PID</div>
+            <div class="form-group"><label>Base Speed</label><input type="number" id="inpSpd" value="40" max="255"></div>
+            <div class="form-group"><label>Kp</label><input type="number" id="inpKp" value="2.0"></div>
+            <div class="form-group"><label>Kd</label><input type="number" id="inpKd" value="1.5"></div>
+            <div class="modal-btns">
+                <button id="btnCancelPID" style="background: var(--bg-main); color: var(--text-muted);">HỦY</button>
+                <button id="btnSavePID" style="background: var(--accent); color: white;">LƯU LẠI</button>
             </div>
         </div>
     </div>
 
     <script>
         const eraWidget = new EraWidget();
-        // actionV1, V2, V3 dùng để gửi lệnh điều khiển xe
-        let actionV1, actionV2, actionV3; 
-        // configUID dùng để nhận chuỗi thẻ RFID từ ESP32
-        let configUID; 
         
-        // Mảng chứa các UID đã thêm tạm thời chưa lưu
-        let tempCheckpoints = []; 
-        // Dữ liệu chính thức được lấy từ LocalStorage
+        let actionV1, actionV2, actionV3, actionV10, actionV11, actionV12, actionV13, actionMapSync; 
+        let configUID, configWifi, configVolt, configAmp, configPWML, configPWMR; 
+        
         let savedCheckpoints = JSON.parse(localStorage.getItem('AGV_Checkpoints')) || [];
+        let systemState = 'stopped';
+        let mapPoints = [];
+        let controlSource = 'WEB';
+        let targetUID = null;
 
+        const statusBadge = document.getElementById('sysStatus');
         const uidInput = document.getElementById('uidInput');
-        const checkpointListDiv = document.getElementById('checkpointList');
-        const gotoListDiv = document.getElementById('gotoList');
+        const pointListDiv = document.getElementById('pointList');
+        const svgMap = document.getElementById('svgMap');
+        const agvIcon = document.getElementById('agvIcon');
+        const interZone = document.getElementById('interZone');
+        const toggleAutoRoute = document.getElementById('toggleAutoRoute');
 
+        // ================= HÀM ĐỒNG BỘ MAP VÀO ESP32 =================
+        function syncMapToESP() {
+            // Lưu tạm vào trình duyệt
+            localStorage.setItem('AGV_Checkpoints', JSON.stringify(savedCheckpoints));
+            
+            // Nếu đã cấu hình chân V14, đóng gói chuỗi JSON và bắn xuống ESP32
+            if(actionMapSync) {
+                let mapString = JSON.stringify(savedCheckpoints);
+                eraWidget.triggerAction(actionMapSync.action, null, {value: mapString});
+            }
+        }
+
+        // Khởi tạo E-Ra Widget
         eraWidget.init({
             onConfiguration: (conf) => {
-                // Ánh xạ các Hành động (Actions) - V1, V2, V3
-                if(conf.actions && conf.actions.length >= 3) {
-                    actionV1 = conf.actions[0]; // Throttle
-                    actionV2 = conf.actions[1]; // Steering
-                    actionV3 = conf.actions[2]; // Mode & Goto (Numeric)
+                if(conf.actions && conf.actions.length >= 3) { 
+                    actionV1 = conf.actions[0]; 
+                    actionV2 = conf.actions[1]; 
+                    actionV3 = conf.actions[2]; 
+                    if(conf.actions.length >= 6) {
+                        actionV10 = conf.actions[3]; // V10: Base Speed
+                        actionV11 = conf.actions[4]; // V11: Kp
+                        actionV12 = conf.actions[5]; // V12: Kd
+                    }
+                    if(conf.actions.length >= 7) {
+                        actionV13 = conf.actions[6]; // V13: Truyền UID mục tiêu
+                    }
+                    // THÊM CHÂN V14 ĐỂ ĐỒNG BỘ MAP (Action thứ 8)
+                    if(conf.actions.length >= 8) {
+                        actionMapSync = conf.actions[7]; 
+                    }
                 }
-
-                // TÍCH HỢP TỪ BẢN TEST: Lấy cấu hình "Giá trị hiện thời" (Realtime) để nhận UID
-                if (conf.realtime_configs && conf.realtime_configs.length > 0) {
-                    configUID = conf.realtime_configs[0]; // V4
+                if(conf.realtime_configs) {
+                    if(conf.realtime_configs.length > 0) configUID = conf.realtime_configs[0]; // V4
+                    if(conf.realtime_configs.length > 1) configWifi = conf.realtime_configs[1]; // V5
+                    if(conf.realtime_configs.length > 2) configVolt = conf.realtime_configs[2]; // V6
+                    if(conf.realtime_configs.length > 3) configAmp = conf.realtime_configs[3];  // V7
+                    if(conf.realtime_configs.length > 4) configPWML = conf.realtime_configs[4]; // V8
+                    if(conf.realtime_configs.length > 5) configPWMR = conf.realtime_configs[5]; // V9
                 }
             },
             onValues: (values) => {
-                // Lắng nghe dữ liệu từ chân V4
                 if (configUID && values[configUID.id]) {
-                    const receivedUID = values[configUID.id].value;
-                    
-                    if (receivedUID !== undefined && receivedUID !== null && String(receivedUID).trim() !== "") {
-                        // Điền trực tiếp vào ô input
-                        uidInput.value = receivedUID;
-
-                        // Tạo hiệu ứng chớp tắt màu nền để báo hiệu quét thành công
-                        uidInput.style.backgroundColor = "#00ffcc";
-                        uidInput.style.color = "#000";
-                        setTimeout(() => {
-                            uidInput.style.backgroundColor = "#2a2a2a";
-                            uidInput.style.color = "#00ffcc";
-                        }, 400);
-                    }
+                    const rfid = String(values[configUID.id].value).trim();
+                    if (rfid) handleScanRFID(rfid);
                 }
+                if (configWifi && values[configWifi.id]) document.getElementById('valWifi').innerText = values[configWifi.id].value + " %";
+                if (configVolt && values[configVolt.id]) document.getElementById('valVolt').innerText = values[configVolt.id].value + " V";
+                if (configAmp && values[configAmp.id]) document.getElementById('valAmp').innerText = values[configAmp.id].value + " A";
+                
+                let currentL = null, currentR = null;
+                if (configPWML && values[configPWML.id]) currentL = values[configPWML.id].value;
+                if (configPWMR && values[configPWMR.id]) currentR = values[configPWMR.id].value;
+                
+                if (currentL !== null || currentR !== null) updateGauges(currentL, currentR);
             }
         });
 
-        // --- HÀM RENDER ---
-        function renderUI() {
-            // 1. Render danh sách thẻ Điểm A, B, C (hiển thị cả mảng temp)
-            checkpointListDiv.innerHTML = '';
-            let displayList = tempCheckpoints.length > 0 ? tempCheckpoints : savedCheckpoints;
+        // Tiện ích Đồng hồ & Đổi nền
+        setInterval(() => { 
+            const d = new Date(); 
+            document.getElementById('clockDate').innerText = d.toLocaleDateString('vi-VN'); 
+            document.getElementById('clockTime').innerText = d.toLocaleTimeString('vi-VN'); 
+        }, 1000);
+
+        document.getElementById('btnTheme').onclick = () => {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            renderMapAndList(); 
+        };
+
+        function setStatus(state) {
+            systemState = state;
+            statusBadge.className = `status-badge ${state}`;
+            statusBadge.innerText = state.toUpperCase();
             
-            displayList.forEach((cp, index) => {
-                const letter = String.fromCharCode(65 + index);
-                const card = document.createElement('div');
-                card.className = 'point-card';
-                card.innerHTML = `
-                    <span class="letter">${letter}</span>
-                    <span class="uid-label">${cp.uid}</span>
-                `;
-                checkpointListDiv.appendChild(card);
+            const valState = document.getElementById('valState');
+            if(state === 'running') { valState.innerText = 'MOVING'; valState.style.color = 'var(--success)'; }
+            else if(state === 'error') { valState.innerText = 'HALTED'; valState.style.color = 'var(--danger)'; }
+            else { valState.innerText = 'STANDBY'; valState.style.color = 'var(--warning)'; }
+        }
+
+        function updateGauges(pwmL, pwmR) {
+            const mapPWM = (val) => { let v = Math.min(255, Math.abs(val)); return -45 + (v / 255) * 180; };
+            const getColor = (val) => { 
+                let v = Math.abs(val); 
+                if(v < 100) return 'var(--success)'; 
+                if(v < 200) return 'var(--warning)'; 
+                return 'var(--danger)'; 
+            };
+
+            if(pwmL !== null) {
+                const gL = document.getElementById('gaugeL');
+                gL.style.transform = `rotate(${mapPWM(pwmL)}deg)`; 
+                gL.style.borderBottomColor = getColor(pwmL); gL.style.borderLeftColor = getColor(pwmL);
+                document.getElementById('valL').innerText = Math.round(Math.abs(pwmL));
+                gL.style.filter = `drop-shadow(0 0 ${Math.abs(pwmL)/20}px ${getColor(pwmL)})`;
+            }
+            if(pwmR !== null) {
+                const gR = document.getElementById('gaugeR');
+                gR.style.transform = `rotate(${mapPWM(pwmR)}deg)`; 
+                gR.style.borderBottomColor = getColor(pwmR); gR.style.borderLeftColor = getColor(pwmR);
+                document.getElementById('valR').innerText = Math.round(Math.abs(pwmR));
+                gR.style.filter = `drop-shadow(0 0 ${Math.abs(pwmR)/20}px ${getColor(pwmR)})`;
+            }
+        }
+
+        // ================= XỬ LÝ MAP ẢO VÀ RFID =================
+        function renderMapAndList() {
+            pointListDiv.innerHTML = ''; svgMap.innerHTML = ''; mapPoints = [];
+            
+            if(savedCheckpoints.length === 0) { 
+                agvIcon.style.opacity = 0; 
+                document.getElementById('savedMapsArea').classList.remove('show');
+                return; 
+            } else {
+                document.getElementById('savedMapsArea').classList.add('show');
+            }
+
+            const w = svgMap.clientWidth || 400; const h = svgMap.clientHeight || 300;
+            const cx = w / 2; const cy = h / 2; const r = Math.min(w, h) * 0.35;
+
+            let polygonPoints = "";
+            savedCheckpoints.forEach((cp, i) => {
+                const angle = (i / savedCheckpoints.length) * 2 * Math.PI - Math.PI/2;
+                const px = cx + r * Math.cos(angle); const py = cy + r * Math.sin(angle);
+                mapPoints.push({x: px, y: py}); polygonPoints += `${px},${py} `;
+
+                const letter = String.fromCharCode(65 + i);
+                
+                const btn = document.createElement('div');
+                btn.className = 'point-btn'; btn.id = `btnCP_${i}`;
+                btn.innerHTML = `<div class="p-title">${letter}. UID: ${cp.uid.substring(0,6)}...</div><button class="btn-del-point">✕</button>`;
+                
+                // CẬP NHẬT NÚT XÓA: Gọi hàm syncMapToESP()
+                btn.onclick = (e) => {
+                    if(e.target.classList.contains('btn-del-point')) {
+                        if(confirm(`Xóa Điểm ${letter}?`)) { 
+                            savedCheckpoints.splice(i, 1); 
+                            syncMapToESP();        // <-- Đã thêm tính năng đồng bộ
+                            renderMapAndList(); 
+                        }
+                        return;
+                    }
+                    gotoPoint(i);
+                };
+                pointListDiv.appendChild(btn);
+
+                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                group.setAttribute("class", "map-node"); group.onclick = () => gotoPoint(i);
+
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("id", `svgCircle_${i}`);
+                circle.setAttribute("cx", px); circle.setAttribute("cy", py); circle.setAttribute("r", "14"); 
+                circle.setAttribute("fill", "var(--bg-panel)"); circle.setAttribute("stroke", "var(--accent)"); circle.setAttribute("stroke-width", "3");
+                
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", px); text.setAttribute("y", py + 4); 
+                text.setAttribute("fill", "var(--text-main)"); text.setAttribute("font-weight", "900"); text.setAttribute("font-size", "13px");
+                text.setAttribute("text-anchor", "middle"); text.textContent = letter;
+                
+                group.appendChild(circle); group.appendChild(text); svgMap.appendChild(group);
             });
 
-            // 2. Render Nút GOTO dựa trên dữ liệu ĐÃ LƯU
-            gotoListDiv.innerHTML = '';
-            if (savedCheckpoints.length === 0) {
-                gotoListDiv.innerHTML = '<div class="no-data-msg">Chưa có điểm lưu nào. Hãy thêm UID và bấm LƯU DỮ LIỆU.</div>';
-            } else {
-                savedCheckpoints.forEach((cp, index) => {
-                    const letter = String.fromCharCode(65 + index);
-                    const btn = document.createElement('button');
-                    btn.className = 'btn-goto';
-                    btn.innerHTML = `GOTO ĐIỂM ${letter} <span class="uid-txt">[UID: ${cp.uid}]</span>`;
-                    
-                    // SỰ KIỆN KHI BẤM GOTO
-                    btn.addEventListener('click', () => {
-                        // Tạo hiệu ứng nháy
-                        btn.style.background = "#FF5500";
-                        setTimeout(() => btn.style.background = "", 300);
+            const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            polyline.setAttribute("points", polygonPoints); polyline.setAttribute("fill", "none"); polyline.setAttribute("stroke", "var(--accent)"); polyline.setAttribute("stroke-width", "2"); polyline.setAttribute("stroke-dasharray", "8,8"); polyline.setAttribute("opacity", "0.4");
+            svgMap.insertBefore(polyline, svgMap.firstChild);
+            agvIcon.style.opacity = 1;
+        }
 
-                        // Gửi lệnh Số qua V3 (A=2001, B=2002, C=2003...) để ESP32 biết điểm đến
-                        let cmdNumeric = 2001 + index;
-                        if (actionV3) eraWidget.triggerAction(actionV3.action, null, { value: cmdNumeric });
-                    });
-                    gotoListDiv.appendChild(btn);
+        function moveAGVTo(index) {
+            if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 16) + 'px'; agvIcon.style.top = (mapPoints[index].y - 16) + 'px'; }
+        }
+
+        function gotoPoint(index) {
+            if(systemState === 'error') return alert("Nhả Nút Dừng Khẩn Cấp!");
+            if(controlSource !== 'WEB') return alert("Chuyển quyền sang WEB để điều khiển Tự Động!");
+            
+            if(!toggleAutoRoute.checked) {
+                moveAGVTo(index);
+                return;
+            }
+
+            targetUID = savedCheckpoints[index].uid;
+            if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: targetUID});
+
+            document.querySelectorAll('.point-btn').forEach(b => b.classList.remove('target', 'arrived'));
+            for(let i=0; i<savedCheckpoints.length; i++) {
+                const c = document.getElementById(`svgCircle_${i}`);
+                if(c) { c.setAttribute("stroke", "var(--accent)"); c.setAttribute("fill", "var(--bg-panel)"); }
+            }
+
+            document.getElementById(`btnCP_${index}`).classList.add('target');
+            const targetCircle = document.getElementById(`svgCircle_${index}`);
+            if(targetCircle) { targetCircle.setAttribute("stroke", "var(--warning)"); targetCircle.setAttribute("fill", "rgba(253, 203, 110, 0.3)"); }
+            
+            setStatus('running'); 
+            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
+        }
+
+        function handleScanRFID(rfid) {
+            uidInput.value = rfid; uidInput.style.borderColor = "var(--success)"; setTimeout(() => uidInput.style.borderColor = "var(--border)", 500);
+            
+            savedCheckpoints.forEach((cp, index) => {
+                if(cp.uid === rfid) moveAGVTo(index); 
+            });
+
+            if (systemState === 'running') {
+                setStatus('stopped');
+                savedCheckpoints.forEach((cp, index) => {
+                    if(cp.uid === rfid) {
+                        document.getElementById(`btnCP_${index}`).classList.replace('target', 'arrived');
+                        const tc = document.getElementById(`svgCircle_${index}`);
+                        if(tc) { tc.setAttribute("stroke", "var(--success)"); tc.setAttribute("fill", "rgba(0, 184, 148, 0.3)"); }
+                    }
                 });
             }
         }
 
-        // --- CÁC SỰ KIỆN NÚT BẤM AUTO ---
+        // ================= XỬ LÝ ĐIỀU KHIỂN THỦ CÔNG =================
+        function sendV1(value) {
+            if(systemState === 'error' || controlSource !== 'WEB') return;
+            setStatus(value === 1494 ? 'stopped' : 'running');
+            if (actionV1) eraWidget.triggerAction(actionV1.action, null, { value: value });
+        }
+
+        function sendV2(value) {
+            if(systemState === 'error' || controlSource !== 'WEB') return;
+            setStatus(value === 1497 ? 'stopped' : 'running');
+            if (actionV2) eraWidget.triggerAction(actionV2.action, null, { value: value });
+        }
+
+        const btnUp = document.getElementById('btnUp');
+        const btnDown = document.getElementById('btnDown');
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+        const centerV1 = 1494; 
+        const centerV2 = 1497;
+
+        btnUp.addEventListener('pointerdown', () => { btnUp.classList.add('active'); sendV1(2025); });
+        btnUp.addEventListener('pointerup', () => { btnUp.classList.remove('active'); sendV1(centerV1); });
+        btnUp.addEventListener('pointerleave', () => { btnUp.classList.remove('active'); sendV1(centerV1); });
+
+        btnDown.addEventListener('pointerdown', () => { btnDown.classList.add('active'); sendV1(1027); });
+        btnDown.addEventListener('pointerup', () => { btnDown.classList.remove('active'); sendV1(centerV1); });
+        btnDown.addEventListener('pointerleave', () => { btnDown.classList.remove('active'); sendV1(centerV1); });
+
+        btnLeft.addEventListener('pointerdown', () => { btnLeft.classList.add('active'); sendV2(987); });
+        btnLeft.addEventListener('pointerup', () => { btnLeft.classList.remove('active'); sendV2(centerV2); });
+        btnLeft.addEventListener('pointerleave', () => { btnLeft.classList.remove('active'); sendV2(centerV2); });
+
+        btnRight.addEventListener('pointerdown', () => { btnRight.classList.add('active'); sendV2(1983); });
+        btnRight.addEventListener('pointerup', () => { btnRight.classList.remove('active'); sendV2(centerV2); });
+        btnRight.addEventListener('pointerleave', () => { btnRight.classList.remove('active'); sendV2(centerV2); });
+
+        const keys = { w: false, a: false, s: false, d: false };
+        document.addEventListener('keydown', (e) => {
+            if(controlSource !== 'WEB' || systemState === 'error' || document.activeElement.tagName === 'INPUT') return;
+            const k = e.key.toLowerCase();
+            if(keys.hasOwnProperty(k) && !keys[k]) {
+                keys[k] = true;
+                if(k==='w') { btnUp.classList.add('active'); sendV1(2025); }
+                if(k==='s') { btnDown.classList.add('active'); sendV1(1027); }
+                if(k==='a') { btnLeft.classList.add('active'); sendV2(987); }
+                if(k==='d') { btnRight.classList.add('active'); sendV2(1983); }
+            }
+        });
         
-        // Thêm điểm vào mảng tạm
-        document.getElementById('btnAdd').addEventListener('click', () => {
-            const uid = uidInput.value.trim();
-            if (uid === "") return alert("Vui lòng nhập UID!");
-            
-            // Lấy danh sách hiện tại để nối tiếp
-            let currentList = tempCheckpoints.length > 0 ? tempCheckpoints : [...savedCheckpoints];
-            currentList.push({ uid: uid });
-            tempCheckpoints = currentList;
-            
-            uidInput.value = ""; // Làm sạch ô nhập
-            renderUI();
-        });
-
-        // Lưu Dữ Liệu
-        document.getElementById('btnSave').addEventListener('click', () => {
-            if (tempCheckpoints.length > 0) {
-                savedCheckpoints = [...tempCheckpoints];
-                localStorage.setItem('AGV_Checkpoints', JSON.stringify(savedCheckpoints));
-                tempCheckpoints = []; // Xóa tạm
-                alert("Đã lưu lộ trình thành công!");
-                renderUI();
-            } else {
-                alert("Bạn chưa thêm điểm mới nào!");
+        document.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if(keys.hasOwnProperty(k)) {
+                keys[k] = false;
+                if(k==='w' || k==='s') { btnUp.classList.remove('active'); btnDown.classList.remove('active'); sendV1(centerV1); }
+                if(k==='a' || k==='d') { btnLeft.classList.remove('active'); btnRight.classList.remove('active'); sendV2(centerV2); }
             }
         });
 
-        // Reset
-        document.getElementById('btnReset').addEventListener('click', () => {
-            if(confirm("Bạn có chắc muốn xóa toàn bộ điểm đã thiết lập? AGV sẽ không còn điểm để Goto.")) {
-                tempCheckpoints = [];
-                savedCheckpoints = [];
-                localStorage.removeItem('AGV_Checkpoints');
-                renderUI();
+        const btnWeb = document.getElementById('btnCtrlWeb');
+        const btnRC = document.getElementById('btnCtrlRC');
+        
+        btnWeb.addEventListener('click', () => {
+            controlSource = 'WEB'; btnWeb.classList.add('active'); btnRC.classList.remove('active');
+            interZone.classList.remove('disabled');
+            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 1000});
+        });
+        
+        btnRC.addEventListener('click', () => {
+            controlSource = 'RC'; btnRC.classList.add('active'); btnWeb.classList.remove('active');
+            interZone.classList.add('disabled');
+            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 3000});
+        });
+
+        // CẬP NHẬT NÚT THÊM, LƯU VÀ XÓA HẾT ĐỂ GỌI HÀM ĐỒNG BỘ
+        document.getElementById('btnAddPoint').onclick = () => {
+            const uid = uidInput.value.trim(); if(!uid) return alert("Quét thẻ hoặc nhập UID!");
+            savedCheckpoints.push({uid: uid}); uidInput.value = ""; 
+            syncMapToESP();        // <-- Đồng bộ sau khi thêm
+            renderMapAndList();
+        };
+        
+        document.getElementById('btnSave').onclick = () => { 
+            syncMapToESP();        // <-- Đồng bộ thủ công
+            renderMapAndList(); 
+            alert("Đã đồng bộ Map xuống ESP32!"); 
+        };
+        
+        document.getElementById('btnReset').onclick = () => { 
+            if(confirm("Xóa toàn bộ bản đồ?")) { 
+                savedCheckpoints = []; 
+                syncMapToESP();    // <-- Đồng bộ xóa mảng rỗng xuống ESP32
+                renderMapAndList(); 
             }
-        });
+        };
+        
+        document.getElementById('btnGoLine').onclick = function() {
+            if(systemState === 'error') return;
+            if(controlSource !== 'WEB') return alert("Vui lòng chuyển sang WEB (E-RA) để chạy Tự động!");
+            
+            if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); 
 
-        // --- CHUYỂN CHẾ ĐỘ MANUAL / AUTO ---
-        const autoPanel = document.getElementById('autoPanel');
-        const manualPanel = document.getElementById('manualPanel');
-        const btnManual = document.getElementById('btnManual');
-        const btnAuto = document.getElementById('btnAuto');
-
-        btnManual.addEventListener('click', () => {
-            btnManual.classList.add('active-manual');
-            btnAuto.classList.remove('active-auto');
-            autoPanel.classList.remove('show');
-            manualPanel.classList.remove('hidden');
-            if (actionV3) eraWidget.triggerAction(actionV3.action, null, { value: 1000 }); // Mode Manual
-        });
-
-        btnAuto.addEventListener('click', () => {
-            btnAuto.classList.add('active-auto');
-            btnManual.classList.remove('active-manual');
-            autoPanel.classList.add('show');
-            manualPanel.classList.add('hidden');
-            renderUI();
-            if (actionV3) eraWidget.triggerAction(actionV3.action, null, { value: 2000 }); // Mode Auto Standby
-        });
-
-        // --- ĐIỀU KHIỂN TAY MANUAL ---
-        function sendV1(v) { document.getElementById('labelRight').textContent = v; if(actionV1) eraWidget.triggerAction(actionV1.action, null, {value: v}); }
-        function sendV2(v) { document.getElementById('labelLeft').textContent = v; if(actionV2) eraWidget.triggerAction(actionV2.action, null, {value: v}); }
-
-        const bindBtn = (id, vDown, vUp, func) => {
-            const b = document.getElementById(id);
-            b.addEventListener('pointerdown', () => func(vDown));
-            b.addEventListener('pointerup', () => func(vUp));
-            b.addEventListener('pointerleave', () => func(vUp));
+            const isRun = this.classList.toggle('active');
+            if(isRun) { this.innerHTML = "⏸ TẠM DỪNG"; setStatus('running'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); } 
+            else { this.innerHTML = "▶ BẮT ĐẦU GO LINE"; setStatus('stopped'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2000}); }
         };
 
-        bindBtn('btnUp', 2025, 1494, sendV1);
-        bindBtn('btnDown', 1027, 1494, sendV1);
-        bindBtn('btnLeft', 987, 1497, sendV2);
-        bindBtn('btnRight', 1983, 1497, sendV2);
+        document.getElementById('btnEStop').onclick = () => {
+            setStatus('error'); updateGauges(0, 0); targetUID = null;
+            if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); 
+            document.getElementById('btnGoLine').classList.remove('active'); document.getElementById('btnGoLine').innerHTML = "▶ BẮT ĐẦU GO LINE";
+            if(actionV1) eraWidget.triggerAction(actionV1.action, null, {value: 1494});
+            if(actionV2) eraWidget.triggerAction(actionV2.action, null, {value: 1497});
+            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 9999});
+        };
 
-        // Khởi tạo
-        renderUI();
+        // Bảng PID
+        document.getElementById('btnTune').onclick = () => document.getElementById('modalPID').classList.add('show');
+        document.getElementById('btnCancelPID').onclick = () => document.getElementById('modalPID').classList.remove('show');
+        document.getElementById('btnSavePID').onclick = () => { 
+            const spd = parseInt(document.getElementById('inpSpd').value);
+            const kp = parseFloat(document.getElementById('inpKp').value);
+            const kd = parseFloat(document.getElementById('inpKd').value);
+            if(actionV10) eraWidget.triggerAction(actionV10.action, null, {value: spd});
+            if(actionV11) eraWidget.triggerAction(actionV11.action, null, {value: kp});
+            if(actionV12) eraWidget.triggerAction(actionV12.action, null, {value: kd});
+            
+            alert("Đã đẩy thông số PID xuống ESP32!"); 
+            document.getElementById('modalPID').classList.remove('show'); 
+        };
+
+        window.addEventListener('resize', renderMapAndList);
+        setTimeout(renderMapAndList, 500); 
+
     </script>
 </body>
 </html>
