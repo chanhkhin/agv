@@ -270,9 +270,9 @@
         let actionV1, actionV2, actionV3, actionV10, actionV11, actionV12, actionV13, actionMapSync; 
         let configUID, configWifi, configVolt, configAmp, configPWML, configPWMR; 
         
-        // BIẾN QUAN TRỌNG: Tách điểm tạm và điểm đã lưu
+        // Tách điểm tạm và điểm đã lưu vào LocalStorage
         let savedCheckpoints = JSON.parse(localStorage.getItem('AGV_Checkpoints')) || [];
-        let tempCheckpoints = [...savedCheckpoints]; // Mảng chứa điểm đang quét (tạm)
+        let tempCheckpoints = [...savedCheckpoints]; 
         
         let systemState = 'stopped'; 
         let mapPoints = [];
@@ -291,6 +291,8 @@
 
         function syncMapToESP() {
             localStorage.setItem('AGV_Checkpoints', JSON.stringify(savedCheckpoints));
+            // ESP32 KHÔNG cần lưu map nữa nên có thể bỏ qua dòng triggerAction V14 nếu muốn
+            // nhưng cứ giữ lại để sau này cần thì lấy
             if(actionMapSync) {
                 let mapString = JSON.stringify(savedCheckpoints);
                 eraWidget.triggerAction(actionMapSync.action, null, {value: mapString});
@@ -373,7 +375,7 @@
         function renderMapAndList() {
             pointListDiv.innerHTML = ''; svgMap.innerHTML = ''; mapPoints = [];
             
-            // 1. CHỈ HIỆN VÀ VẼ BẢN ĐỒ SVG NẾU ĐÃ BẤM "LƯU MAP" (tức là savedCheckpoints có data)
+            // CHỈ HIỆN VÀ VẼ BẢN ĐỒ SVG NẾU ĐÃ BẤM "LƯU MAP"
             if(savedCheckpoints.length === 0) { 
                 agvIcon.style.opacity = 0; document.getElementById('savedMapsArea').classList.remove('show'); 
             } else { 
@@ -406,9 +408,9 @@
                 agvIcon.style.opacity = 1;
             }
 
-            // 2. DANH SÁCH ĐIỂM (POINT LIST) LẤY TỪ MẢNG TẠM (tempCheckpoints)
+            // DANH SÁCH ĐIỂM (POINT LIST) LẤY TỪ MẢNG TẠM
             tempCheckpoints.forEach((cp, i) => {
-                const isSaved = i < savedCheckpoints.length; // Kiểm tra điểm này đã được lưu chưa
+                const isSaved = i < savedCheckpoints.length;
                 const letter = String.fromCharCode(65 + i);
                 const btn = document.createElement('div');
                 btn.className = 'point-btn'; btn.id = `btnCP_${i}`;
@@ -423,7 +425,6 @@
                     if(e.target.classList.contains('btn-del-point')) {
                         if(confirm(`Xóa Điểm ${letter}?`)) { 
                             tempCheckpoints.splice(i, 1); 
-                            // Nếu xóa 1 điểm đã lưu, phải xóa luôn trong mảng chính
                             if(isSaved) {
                                 savedCheckpoints.splice(i, 1);
                                 syncMapToESP();
@@ -443,21 +444,31 @@
             if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 16) + 'px'; agvIcon.style.top = (mapPoints[index].y - 16) + 'px'; }
         }
 
+        // ================= XỬ LÝ QUÉT THẺ TỐI ƯU =================
         function handleScanRFID(rfid) {
             uidInput.value = rfid; 
             uidInput.style.borderColor = "var(--success)"; setTimeout(() => uidInput.style.borderColor = "var(--border)", 500);
-            btnAddPoint.classList.add('flash-add'); 
+
+            // LUÔN DI CHUYỂN ICON NẾU THẺ ĐÃ ĐƯỢC LƯU
+            let isKnownTag = false;
+            savedCheckpoints.forEach((cp, index) => {
+                if(cp.uid === rfid) {
+                    moveAGVTo(index); 
+                    isKnownTag = true;
+                }
+            });
 
             if (!toggleAutoRoute.checked) {
-                setStatus('waiting'); 
-                btnGoLine.className = "btn-goline waiting";
-                btnGoLine.innerHTML = "▶ TIẾP TỤC (Bỏ qua thẻ)"; 
+                // ĐANG DẠY MAP (Không bật switch CHẠY MAP)
+                btnAddPoint.classList.add('flash-add'); 
+                if (systemState === 'running') {
+                    setStatus('waiting'); 
+                    btnGoLine.className = "btn-goline waiting";
+                    btnGoLine.innerHTML = "▶ TIẾP TỤC (Bỏ qua thẻ)"; 
+                }
             } 
             else {
-                savedCheckpoints.forEach((cp, index) => {
-                    if(cp.uid === rfid) moveAGVTo(index); 
-                });
-
+                // ĐANG CHẠY ROUTING TỚI ĐÍCH
                 if (rfid === targetUID && systemState === 'running') {
                     setStatus('stopped'); 
                     btnGoLine.className = "btn-goline locked";
@@ -578,28 +589,25 @@
         btnWeb.addEventListener('click', () => { controlSource = 'WEB'; btnWeb.classList.add('active'); btnRC.classList.remove('active'); interZone.classList.remove('disabled'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 1000}); });
         btnRC.addEventListener('click', () => { controlSource = 'RC'; btnRC.classList.add('active'); btnWeb.classList.remove('active'); interZone.classList.add('disabled'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 3000}); });
 
-        // NÚT THÊM ĐIỂM (CHỈ ĐẨY VÀO MẢNG TẠM)
         btnAddPoint.onclick = () => {
             const uid = uidInput.value.trim(); if(!uid) return alert("Quét thẻ hoặc nhập UID!");
             tempCheckpoints.push({uid: uid}); 
             uidInput.value = ""; 
             btnAddPoint.classList.remove('flash-add'); 
-            renderMapAndList(); // Vẽ lại List (SVG map không đổi)
+            renderMapAndList(); 
         };
         
-        // NÚT LƯU MAP (CHỐT MẢNG TẠM SANG MẢNG LƯU VÀ GỬI XUỐNG ESP)
         document.getElementById('btnSave').onclick = () => { 
-            savedCheckpoints = [...tempCheckpoints]; // Copy mảng tạm sang mảng chính
+            savedCheckpoints = [...tempCheckpoints]; 
             syncMapToESP(); 
             renderMapAndList(); 
-            alert("Đã đồng bộ Map xuống ESP32!"); 
+            alert("Đã đồng bộ Map!"); 
         };
 
-        // NÚT XÓA HẾT
         document.getElementById('btnReset').onclick = () => { 
             if(confirm("Xóa toàn bộ bản đồ?")) { 
                 savedCheckpoints = []; 
-                tempCheckpoints = []; // Xóa cả mảng tạm
+                tempCheckpoints = []; 
                 syncMapToESP(); 
                 renderMapAndList(); 
             }
