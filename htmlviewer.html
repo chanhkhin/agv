@@ -275,7 +275,6 @@
         let actionV1, actionV2, actionV3, actionV10, actionV11, actionV12, actionV13, actionMapSync; 
         let configUID, configWifi, configVolt, configAmp, configPWML, configPWMR; 
         
-        // Tách điểm tạm và điểm đã lưu vào LocalStorage
         let savedCheckpoints = JSON.parse(localStorage.getItem('AGV_Checkpoints')) || [];
         let tempCheckpoints = [...savedCheckpoints]; 
         
@@ -324,7 +323,11 @@
             onValues: (values) => {
                 if (configUID && values[configUID.id]) {
                     const rfid = String(values[configUID.id].value).trim();
-                    if (rfid) handleScanRFID(rfid);
+                    
+                    // ĐIỂM SỬA LỖI Ở ĐÂY: Lọc bỏ chữ "none" do ERa timeout tạo ra
+                    if (rfid && rfid.toLowerCase() !== 'none' && rfid.toLowerCase() !== 'null' && rfid !== '0') {
+                        handleScanRFID(rfid);
+                    }
                 }
                 if (configWifi && values[configWifi.id]) document.getElementById('valWifi').innerText = values[configWifi.id].value + " %";
                 if (configVolt && values[configVolt.id]) document.getElementById('valVolt').innerText = values[configVolt.id].value + " V";
@@ -410,7 +413,6 @@
                 agvIcon.style.opacity = 1;
             }
 
-            // DANH SÁCH ĐIỂM (POINT LIST)
             tempCheckpoints.forEach((cp, i) => {
                 const isSaved = i < savedCheckpoints.length;
                 const letter = String.fromCharCode(65 + i);
@@ -446,12 +448,10 @@
             if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 16) + 'px'; agvIcon.style.top = (mapPoints[index].y - 16) + 'px'; }
         }
 
-        // ================= XỬ LÝ QUÉT THẺ TỐI ƯU =================
         function handleScanRFID(rfid) {
             uidInput.value = rfid; 
             uidInput.style.borderColor = "var(--success)"; setTimeout(() => uidInput.style.borderColor = "var(--border)", 500);
 
-            // LUÔN DI CHUYỂN ICON NẾU THẺ ĐÃ ĐƯỢC LƯU
             let isKnownTag = false;
             savedCheckpoints.forEach((cp, index) => {
                 if(cp.uid === rfid) {
@@ -461,7 +461,6 @@
             });
 
             if (!toggleAutoRoute.checked) {
-                // ĐANG DẠY MAP (Không bật switch CHẠY MAP)
                 btnAddPoint.classList.add('flash-add'); 
                 if (systemState === 'running') {
                     setStatus('waiting'); 
@@ -470,7 +469,6 @@
                 }
             } 
             else {
-                // ĐANG CHẠY ROUTING TỚI ĐÍCH
                 if (rfid === targetUID && systemState === 'running') {
                     setStatus('stopped'); 
                     btnGoLine.className = "btn-goline locked";
@@ -511,9 +509,6 @@
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
         }
 
-        // ================= LOGIC 3 NÚT ĐIỀU KHIỂN =================
-        
-        // 1. NÚT BẮT ĐẦU CHẠY
         btnGoLine.onclick = function() {
             if(systemState === 'error') return;
             if(controlSource !== 'WEB') return alert("Vui lòng chuyển sang WEB (E-RA) để chạy Tự động!");
@@ -527,7 +522,6 @@
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
         };
 
-        // 2. NÚT TẠM DỪNG
         document.getElementById('btnPause').onclick = function() {
             if(systemState === 'error' || controlSource !== 'WEB') return;
             
@@ -537,7 +531,6 @@
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2000}); 
         };
 
-        // 3. NÚT TIẾP TỤC (BỎ QUA THẺ ĐỂ DÒ TIẾP)
         document.getElementById('btnContinue').onclick = function() {
             if(systemState === 'error' || controlSource !== 'WEB') return;
             if(systemState !== 'waiting') return alert("Xe không ở trạng thái chờ thẻ!");
@@ -547,8 +540,6 @@
             btnGoLine.innerHTML = "✅ ĐANG CHẠY AUTO";
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2300}); 
         };
-
-        // =========================================================
 
         toggleAutoRoute.addEventListener('change', function() {
             if(this.checked) {
