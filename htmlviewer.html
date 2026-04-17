@@ -95,8 +95,24 @@
         @keyframes flashBtn { 0%, 100% { box-shadow: 0 0 0px var(--success); transform: scale(1);} 50% { box-shadow: 0 0 15px var(--success); transform: scale(1.05); background: var(--warning); color: #000;} }
         .flash-add { animation: flashBtn 1s infinite !important; }
 
-        #pointList { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;}
-        .point-btn { background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 12px 15px; cursor: pointer; position: relative; border-left: 6px solid var(--border);}
+        /* DANH SÁCH ĐIỂM (CÓ THANH CUỘN) */
+        #pointList { 
+            flex: 1; 
+            max-height: 220px; /* Ép giới hạn chiều cao để sinh thanh cuộn */
+            overflow-y: auto; 
+            overflow-x: hidden;
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            padding-right: 8px;
+        }
+        /* Style cho thanh cuộn List Điểm */
+        #pointList::-webkit-scrollbar { width: 6px; }
+        #pointList::-webkit-scrollbar-track { background: var(--bg-main); border-radius: 6px; }
+        #pointList::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 6px; }
+        #pointList::-webkit-scrollbar-thumb:hover { background: #00a8ff; }
+
+        .point-btn { background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 12px 15px; cursor: pointer; position: relative; border-left: 6px solid var(--border); flex-shrink: 0;}
         .point-btn .p-title { font-weight: 900; font-size: 16px; color: var(--text-main); margin-bottom: 4px;}
         .point-btn .p-uid { font-size: 13px; color: var(--text-muted); font-family: monospace; }
         .btn-del-point { position: absolute; top: 12px; right: 12px; background: rgba(255, 118, 117, 0.1); border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--danger); cursor: pointer; font-weight: bold;}
@@ -148,7 +164,7 @@
         <div class="sys-title">AGV <span>PRO-DASH</span></div>
         <div class="sys-status-bar">
             <div id="sysStatus" class="status-badge stopped">STOPPED</div>
-            <button id="btnEStop" class="btn-estop">E-STOP KHIỂN CẤP</button>
+            <button id="btnEStop" class="btn-estop">E-STOP KHẨN CẤP</button>
         </div>
         <div style="display: flex; gap: 15px; align-items: center;">
             <button id="btnTheme" class="btn-icon">🌓 GIAO DIỆN</button>
@@ -395,6 +411,9 @@
                 };
                 pointListDiv.appendChild(btn);
             });
+            
+            // Tự động cuộn xuống dưới cùng khi có điểm mới
+            setTimeout(() => { pointListDiv.scrollTop = pointListDiv.scrollHeight; }, 50);
         }
 
         function moveAGVTo(index) {
