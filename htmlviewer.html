@@ -82,7 +82,7 @@
         .map-node text { pointer-events: none; }
 
         .route-controls { display: flex; flex-direction: column; gap: 12px; }
-        .btn-goline { background: linear-gradient(135deg, var(--accent), #00a8ff); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer; transition: 0.2s;}
+        .btn-goline { background: linear-gradient(135deg, var(--accent), #00a8ff); color: white; border: none; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;}
         .btn-goline.active { background: linear-gradient(135deg, #f39c12, #f1c40f); color: #000; }
         .btn-goline.waiting { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; animation: pulse 1.5s infinite;} 
         .btn-goline.locked { background: var(--border); color: var(--text-muted); cursor: not-allowed; } 
@@ -202,7 +202,12 @@
                 </div>
 
                 <div class="route-controls">
-                    <button id="btnGoLine" class="btn-goline">▶ BẮT ĐẦU GO LINE</button>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <button id="btnGoLine" class="btn-goline" style="grid-column: span 2; padding: 14px;">▶ BẮT ĐẦU AUTO</button>
+                      <button id="btnPause" class="btn-goline" style="background: var(--warning); color: #000; padding: 10px;">⏸ TẠM DỪNG</button>
+                      <button id="btnContinue" class="btn-goline" style="background: #9b59b6; color: #fff; padding: 10px;">⏭ TIẾP TỤC</button>
+                    </div>
+
                     <div class="input-row">
                         <input type="text" id="uidInput" placeholder="Nhập / Quét UID">
                         <button id="btnAddPoint" title="Lưu điểm này">+</button>
@@ -220,8 +225,8 @@
                             <div class="switch-container">
                                 <span id="lblAutoRoute">CHẠY MAP</span>
                                 <label class="switch">
-                                  <input type="checkbox" id="toggleAutoRoute">
-                                  <span class="slider"></span>
+                                    <input type="checkbox" id="toggleAutoRoute">
+                                    <span class="slider"></span>
                                 </label>
                             </div>
                         </div>
@@ -270,16 +275,14 @@
         let actionV1, actionV2, actionV3, actionV10, actionV11, actionV12, actionV13, actionMapSync; 
         let configUID, configWifi, configVolt, configAmp, configPWML, configPWMR; 
         
+        // Tách điểm tạm và điểm đã lưu vào LocalStorage
         let savedCheckpoints = JSON.parse(localStorage.getItem('AGV_Checkpoints')) || [];
         let tempCheckpoints = [...savedCheckpoints]; 
         
         let systemState = 'stopped'; 
         let mapPoints = [];
         let controlSource = 'WEB';
-        
-        // CÁC BIẾN QUAN TRỌNG ĐỂ CHỐNG LỖI TREO NÚT
         let targetUID = null;
-        let lastProcessedUID = ""; 
 
         const statusBadge = document.getElementById('sysStatus');
         const uidInput = document.getElementById('uidInput');
@@ -319,20 +322,10 @@
                 }
             },
             onValues: (values) => {
-                // LOGIC LỌC UID CHỐNG TREO 
                 if (configUID && values[configUID.id]) {
                     const rfid = String(values[configUID.id].value).trim();
-                    
-                    if (rfid !== "" && rfid !== lastProcessedUID) {
-                        lastProcessedUID = rfid; // Lưu lại để không xử lý lại nữa
-                        handleScanRFID(rfid);
-                    } 
-                    else if (rfid === "") {
-                        lastProcessedUID = ""; // Reset khi xe rời khỏi thẻ
-                    }
+                    if (rfid) handleScanRFID(rfid);
                 }
-
-                // Cập nhật các thông số khác
                 if (configWifi && values[configWifi.id]) document.getElementById('valWifi').innerText = values[configWifi.id].value + " %";
                 if (configVolt && values[configVolt.id]) document.getElementById('valVolt').innerText = values[configVolt.id].value + " V";
                 if (configAmp && values[configAmp.id]) document.getElementById('valAmp').innerText = values[configAmp.id].value + " A";
@@ -417,6 +410,7 @@
                 agvIcon.style.opacity = 1;
             }
 
+            // DANH SÁCH ĐIỂM (POINT LIST)
             tempCheckpoints.forEach((cp, i) => {
                 const isSaved = i < savedCheckpoints.length;
                 const letter = String.fromCharCode(65 + i);
@@ -432,7 +426,7 @@
                 btn.onclick = (e) => {
                     if(e.target.classList.contains('btn-del-point')) {
                         if(confirm(`Xóa Điểm ${letter}?`)) { 
-                            tempCheckpoints.splice(i, 1); 
+                            tempCheckpoints.splice(i, 1);
                             if(isSaved) {
                                 savedCheckpoints.splice(i, 1);
                                 syncMapToESP();
@@ -452,10 +446,12 @@
             if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 16) + 'px'; agvIcon.style.top = (mapPoints[index].y - 16) + 'px'; }
         }
 
+        // ================= XỬ LÝ QUÉT THẺ TỐI ƯU =================
         function handleScanRFID(rfid) {
             uidInput.value = rfid; 
             uidInput.style.borderColor = "var(--success)"; setTimeout(() => uidInput.style.borderColor = "var(--border)", 500);
 
+            // LUÔN DI CHUYỂN ICON NẾU THẺ ĐÃ ĐƯỢC LƯU
             let isKnownTag = false;
             savedCheckpoints.forEach((cp, index) => {
                 if(cp.uid === rfid) {
@@ -465,14 +461,16 @@
             });
 
             if (!toggleAutoRoute.checked) {
+                // ĐANG DẠY MAP (Không bật switch CHẠY MAP)
                 btnAddPoint.classList.add('flash-add'); 
                 if (systemState === 'running') {
                     setStatus('waiting'); 
                     btnGoLine.className = "btn-goline waiting";
-                    btnGoLine.innerHTML = "▶ TIẾP TỤC (Bỏ qua thẻ)"; 
+                    btnGoLine.innerHTML = "⏳ ĐANG CHỜ TẠI THẺ..."; 
                 }
             } 
             else {
+                // ĐANG CHẠY ROUTING TỚI ĐÍCH
                 if (rfid === targetUID && systemState === 'running') {
                     setStatus('stopped'); 
                     btnGoLine.className = "btn-goline locked";
@@ -513,42 +511,53 @@
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
         }
 
+        // ================= LOGIC 3 NÚT ĐIỀU KHIỂN =================
+        
+        // 1. NÚT BẮT ĐẦU CHẠY
         btnGoLine.onclick = function() {
             if(systemState === 'error') return;
             if(controlSource !== 'WEB') return alert("Vui lòng chuyển sang WEB (E-RA) để chạy Tự động!");
-            
-            if(toggleAutoRoute.checked) {
-                return alert("Đang bật CHẠY MAP! Vui lòng nhấp thẳng vào các điểm A, B, C trên bản đồ để xe chạy tới đó.");
-            }
+            if(toggleAutoRoute.checked) return alert("Đang bật CHẠY MAP! Vui lòng nhấp thẳng vào các điểm A, B, C trên bản đồ để xe chạy tới đó.");
 
             if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""});
-
-            if (systemState === 'waiting') {
-                setStatus('running');
-                this.className = "btn-goline active";
-                this.innerHTML = "⏸ TẠM DỪNG";
-                if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100});
-                return;
-            }
-
-            const isRun = this.classList.toggle('active');
-            if(isRun) { 
-                this.innerHTML = "⏸ TẠM DỪNG"; setStatus('running'); 
-                if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
-            } else { 
-                this.innerHTML = "▶ BẮT ĐẦU GO LINE"; setStatus('stopped'); 
-                if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2000}); 
-            }
+            
+            setStatus('running');
+            this.className = "btn-goline active";
+            this.innerHTML = "✅ ĐANG CHẠY AUTO";
+            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
         };
+
+        // 2. NÚT TẠM DỪNG
+        document.getElementById('btnPause').onclick = function() {
+            if(systemState === 'error' || controlSource !== 'WEB') return;
+            
+            setStatus('stopped');
+            btnGoLine.className = "btn-goline";
+            btnGoLine.innerHTML = "▶ BẮT ĐẦU AUTO";
+            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2000}); 
+        };
+
+        // 3. NÚT TIẾP TỤC (BỎ QUA THẺ ĐỂ DÒ TIẾP)
+        document.getElementById('btnContinue').onclick = function() {
+            if(systemState === 'error' || controlSource !== 'WEB') return;
+            if(systemState !== 'waiting') return alert("Xe không ở trạng thái chờ thẻ!");
+
+            setStatus('running');
+            btnGoLine.className = "btn-goline active";
+            btnGoLine.innerHTML = "✅ ĐANG CHẠY AUTO";
+            if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2300}); 
+        };
+
+        // =========================================================
 
         toggleAutoRoute.addEventListener('change', function() {
             if(this.checked) {
                 btnGoLine.className = "btn-goline locked";
                 btnGoLine.innerHTML = "CHỌN ĐIỂM ĐẾN TRÊN BẢN ĐỒ";
-                if(systemState === 'running') btnGoLine.click(); 
+                if(systemState === 'running') document.getElementById('btnPause').click(); 
             } else {
                 btnGoLine.className = "btn-goline";
-                btnGoLine.innerHTML = "▶ BẮT ĐẦU GO LINE";
+                btnGoLine.innerHTML = "▶ BẮT ĐẦU AUTO";
                 targetUID = null;
                 if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""});
                 document.querySelectorAll('.point-btn').forEach(b => b.classList.remove('target', 'arrived'));
@@ -617,14 +626,11 @@
             }
         };
 
-        // KHI BẤM E-STOP HOẶC MUỐN TẮT CHẾ ĐỘ DÒ LINE BẤT CỨ LÚC NÀO
         document.getElementById('btnEStop').onclick = () => {
             setStatus('error'); updateGauges(0, 0); targetUID = null;
             if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); 
-            btnGoLine.className = "btn-goline"; btnGoLine.innerHTML = "▶ BẮT ĐẦU GO LINE";
+            btnGoLine.className = "btn-goline"; btnGoLine.innerHTML = "▶ BẮT ĐẦU AUTO";
             if(toggleAutoRoute.checked) { toggleAutoRoute.checked = false; toggleAutoRoute.dispatchEvent(new Event('change')); }
-            
-            // Ép xe đứng im và tắt tự động
             if(actionV1) eraWidget.triggerAction(actionV1.action, null, {value: 1494});
             if(actionV2) eraWidget.triggerAction(actionV2.action, null, {value: 1497});
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 9999});
@@ -635,7 +641,7 @@
         document.getElementById('btnSavePID').onclick = () => { 
             const spd = parseInt(document.getElementById('inpSpd').value); const kp = parseFloat(document.getElementById('inpKp').value); const kd = parseFloat(document.getElementById('inpKd').value);
             if(actionV10) eraWidget.triggerAction(actionV10.action, null, {value: spd}); if(actionV11) eraWidget.triggerAction(actionV11.action, null, {value: kp}); if(actionV12) eraWidget.triggerAction(actionV12.action, null, {value: kd});
-            alert("Đã đẩy thông số PID xuống ESP32!"); document.getElementById('modalPID').classList.remove('show'); 
+            alert("Đã đẩy thông số PID xuống ESP32!"); document.getElementById('modalPID').classList.remove('show');
         };
 
         window.addEventListener('resize', renderMapAndList);
