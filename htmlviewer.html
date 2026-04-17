@@ -270,14 +270,16 @@
         let actionV1, actionV2, actionV3, actionV10, actionV11, actionV12, actionV13, actionMapSync; 
         let configUID, configWifi, configVolt, configAmp, configPWML, configPWMR; 
         
-        // Tách điểm tạm và điểm đã lưu vào LocalStorage
         let savedCheckpoints = JSON.parse(localStorage.getItem('AGV_Checkpoints')) || [];
         let tempCheckpoints = [...savedCheckpoints]; 
         
         let systemState = 'stopped'; 
         let mapPoints = [];
         let controlSource = 'WEB';
+        
+        // CÁC BIẾN QUAN TRỌNG ĐỂ CHỐNG LỖI TREO NÚT
         let targetUID = null;
+        let lastProcessedUID = ""; 
 
         const statusBadge = document.getElementById('sysStatus');
         const uidInput = document.getElementById('uidInput');
@@ -291,8 +293,6 @@
 
         function syncMapToESP() {
             localStorage.setItem('AGV_Checkpoints', JSON.stringify(savedCheckpoints));
-            // ESP32 KHÔNG cần lưu map nữa nên có thể bỏ qua dòng triggerAction V14 nếu muốn
-            // nhưng cứ giữ lại để sau này cần thì lấy
             if(actionMapSync) {
                 let mapString = JSON.stringify(savedCheckpoints);
                 eraWidget.triggerAction(actionMapSync.action, null, {value: mapString});
@@ -319,10 +319,20 @@
                 }
             },
             onValues: (values) => {
+                // LOGIC LỌC UID CHỐNG TREO 
                 if (configUID && values[configUID.id]) {
                     const rfid = String(values[configUID.id].value).trim();
-                    if (rfid) handleScanRFID(rfid);
+                    
+                    if (rfid !== "" && rfid !== lastProcessedUID) {
+                        lastProcessedUID = rfid; // Lưu lại để không xử lý lại nữa
+                        handleScanRFID(rfid);
+                    } 
+                    else if (rfid === "") {
+                        lastProcessedUID = ""; // Reset khi xe rời khỏi thẻ
+                    }
                 }
+
+                // Cập nhật các thông số khác
                 if (configWifi && values[configWifi.id]) document.getElementById('valWifi').innerText = values[configWifi.id].value + " %";
                 if (configVolt && values[configVolt.id]) document.getElementById('valVolt').innerText = values[configVolt.id].value + " V";
                 if (configAmp && values[configAmp.id]) document.getElementById('valAmp').innerText = values[configAmp.id].value + " A";
@@ -375,7 +385,6 @@
         function renderMapAndList() {
             pointListDiv.innerHTML = ''; svgMap.innerHTML = ''; mapPoints = [];
             
-            // CHỈ HIỆN VÀ VẼ BẢN ĐỒ SVG NẾU ĐÃ BẤM "LƯU MAP"
             if(savedCheckpoints.length === 0) { 
                 agvIcon.style.opacity = 0; document.getElementById('savedMapsArea').classList.remove('show'); 
             } else { 
@@ -408,7 +417,6 @@
                 agvIcon.style.opacity = 1;
             }
 
-            // DANH SÁCH ĐIỂM (POINT LIST) LẤY TỪ MẢNG TẠM
             tempCheckpoints.forEach((cp, i) => {
                 const isSaved = i < savedCheckpoints.length;
                 const letter = String.fromCharCode(65 + i);
@@ -444,12 +452,10 @@
             if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 16) + 'px'; agvIcon.style.top = (mapPoints[index].y - 16) + 'px'; }
         }
 
-        // ================= XỬ LÝ QUÉT THẺ TỐI ƯU =================
         function handleScanRFID(rfid) {
             uidInput.value = rfid; 
             uidInput.style.borderColor = "var(--success)"; setTimeout(() => uidInput.style.borderColor = "var(--border)", 500);
 
-            // LUÔN DI CHUYỂN ICON NẾU THẺ ĐÃ ĐƯỢC LƯU
             let isKnownTag = false;
             savedCheckpoints.forEach((cp, index) => {
                 if(cp.uid === rfid) {
@@ -459,7 +465,6 @@
             });
 
             if (!toggleAutoRoute.checked) {
-                // ĐANG DẠY MAP (Không bật switch CHẠY MAP)
                 btnAddPoint.classList.add('flash-add'); 
                 if (systemState === 'running') {
                     setStatus('waiting'); 
@@ -468,7 +473,6 @@
                 }
             } 
             else {
-                // ĐANG CHẠY ROUTING TỚI ĐÍCH
                 if (rfid === targetUID && systemState === 'running') {
                     setStatus('stopped'); 
                     btnGoLine.className = "btn-goline locked";
@@ -613,11 +617,14 @@
             }
         };
 
+        // KHI BẤM E-STOP HOẶC MUỐN TẮT CHẾ ĐỘ DÒ LINE BẤT CỨ LÚC NÀO
         document.getElementById('btnEStop').onclick = () => {
             setStatus('error'); updateGauges(0, 0); targetUID = null;
             if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); 
             btnGoLine.className = "btn-goline"; btnGoLine.innerHTML = "▶ BẮT ĐẦU GO LINE";
             if(toggleAutoRoute.checked) { toggleAutoRoute.checked = false; toggleAutoRoute.dispatchEvent(new Event('change')); }
+            
+            // Ép xe đứng im và tắt tự động
             if(actionV1) eraWidget.triggerAction(actionV1.action, null, {value: 1494});
             if(actionV2) eraWidget.triggerAction(actionV2.action, null, {value: 1497});
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 9999});
