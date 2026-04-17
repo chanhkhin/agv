@@ -165,7 +165,7 @@
         <div class="sys-title">AGV <span>PRO-DASH</span></div>
         <div class="sys-status-bar">
             <div id="sysStatus" class="status-badge stopped">STOPPED</div>
-            <button id="btnEStop" class="btn-estop">E-STOP</button>
+            <button id="btnEStop" class="btn-estop">E-STOP KHẨN CẤP</button>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
             <button id="btnTheme" class="btn-icon">🌓 GIAO DIỆN</button>
@@ -276,20 +276,24 @@
             }
         }
 
+        // ==========================================
+        // CẬP NHẬT MAPPING CHUẨN THEO ẢNH ERA CỦA BẠN
+        // ==========================================
         eraWidget.init({
             onConfiguration: (conf) => {
-                if(conf.actions && conf.actions.length >= 3) { 
-                    actionV3 = conf.actions[2]; 
-                    if(conf.actions.length >= 7) actionV13 = conf.actions[6];
-                    if(conf.actions.length >= 8) actionMapSync = conf.actions[7]; 
-                }
-                if(conf.realtime_configs) {
-                    if(conf.realtime_configs.length > 0) configUID = conf.realtime_configs[0];
-                    if(conf.realtime_configs.length > 1) configWifi = conf.realtime_configs[1];
-                    if(conf.realtime_configs.length > 2) configVolt = conf.realtime_configs[2];
-                    if(conf.realtime_configs.length > 3) configAmp = conf.realtime_configs[3];
-                    if(conf.realtime_configs.length > 4) configPWML = conf.realtime_configs[4];
-                    if(conf.realtime_configs.length > 5) configPWMR = conf.realtime_configs[5];
+                // ACTIONS: [0]=V3, [1]=V13, [2]=V14
+                if(conf.actions && conf.actions.length > 0) actionV3 = conf.actions[0]; 
+                if(conf.actions && conf.actions.length > 1) actionV13 = conf.actions[1];
+                if(conf.actions && conf.actions.length > 2) actionMapSync = conf.actions[2]; 
+                
+                // REALTIME CONFIGS: [0]=V3, [1]=V4, [2]=V5, [3]=V6, [4]=V7, [5]=V8, [6]=V9
+                if(conf.realtime_configs && conf.realtime_configs.length >= 7) {
+                    configUID = conf.realtime_configs[1];
+                    configWifi = conf.realtime_configs[2];
+                    configVolt = conf.realtime_configs[3];
+                    configAmp = conf.realtime_configs[4];
+                    configPWML = conf.realtime_configs[5];
+                    configPWMR = conf.realtime_configs[6];
                 }
             },
             onValues: (values) => {
