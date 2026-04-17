@@ -6,7 +6,7 @@
     <title>AGV Smart Warehouse HMI - Pro Edition</title>
     <script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
     <style>
-        /* ================= CẤU HÌNH MÀU SẮC (THEMES) ================= */
+        /* ================= CẤU HÌNH MÀU SẮC ================= */
         :root {
             --bg-main: #eef2f5; --bg-panel: #ffffff; --text-main: #2d3436; --text-muted: #636e72;
             --border: #dcdde1; --accent: #0984e3; --success: #00b894; --warning: #fdcb6e;
@@ -28,14 +28,14 @@
 
         /* ================= BỐ CỤC CHUNG ================= */
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        body { margin: 0; padding: 12px; height: 100vh; overflow: hidden; background-color: var(--bg-main); color: var(--text-main); display: flex; flex-direction: column; gap: 15px; user-select: none; -webkit-user-select: none; transition: background-color 0.3s; }
+        body { margin: 0; padding: 10px; height: 100vh; overflow: hidden; background-color: var(--bg-main); color: var(--text-main); display: flex; flex-direction: column; gap: 10px; user-select: none; -webkit-user-select: none; transition: background-color 0.3s; }
 
         /* ================= HEADER ================= */
-        header { display: flex; justify-content: space-between; align-items: center; background: var(--header-bg); padding: 12px 20px; border-radius: 10px; box-shadow: 0 4px 15px var(--shadow); flex-shrink: 0;}
-        .sys-title { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: var(--header-text); text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--header-bg); padding: 8px 15px; border-radius: 8px; box-shadow: 0 4px 10px var(--shadow); flex-shrink: 0;}
+        .sys-title { font-size: 18px; font-weight: 900; letter-spacing: 1px; color: var(--header-text); text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         .sys-title span { color: #ffeaa7; }
-        .sys-status-bar { display: flex; align-items: center; gap: 20px; }
-        .status-badge { padding: 6px 20px; border-radius: 20px; font-weight: 800; font-size: 14px; background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; letter-spacing: 0.5px;}
+        .sys-status-bar { display: flex; align-items: center; gap: 15px; }
+        .status-badge { padding: 4px 15px; border-radius: 20px; font-weight: 800; font-size: 12px; background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; letter-spacing: 0.5px;}
         .status-badge.running { background: var(--success); }
         .status-badge.stopped { background: var(--warning); color: #000; }
         .status-badge.error { background: var(--danger); animation: blink 1s infinite; }
@@ -44,17 +44,17 @@
         @keyframes blink { 50% { opacity: 0.5; } }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         
-        .btn-estop { background: var(--danger); color: white; border: 2px solid #ff4757; padding: 8px 24px; border-radius: 8px; font-size: 16px; font-weight: 900; cursor: pointer; transition: 0.2s;}
+        .btn-estop { background: var(--danger); color: white; border: 2px solid #ff4757; padding: 6px 15px; border-radius: 6px; font-size: 13px; font-weight: 900; cursor: pointer; transition: 0.2s;}
         .btn-estop:active { transform: scale(0.92); opacity: 0.8;}
-        .time-box { text-align: right; font-size: 12px; color: rgba(255,255,255,0.7); }
-        .time-box .clock { font-size: 18px; font-weight: 800; color: #fff; }
-        .btn-icon { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 8px; padding: 8px 15px; cursor: pointer; transition: 0.2s;}
+        .time-box { text-align: right; font-size: 11px; color: rgba(255,255,255,0.7); }
+        .time-box .clock { font-size: 14px; font-weight: 800; color: #fff; }
+        .btn-icon { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 6px; padding: 6px 10px; cursor: pointer; transition: 0.2s; font-size: 12px; font-weight: bold;}
 
-        /* ================= BỐ CỤC LƯỚI CHÍNH (GRID WORKSPACE) ================= */
+        /* ================= BỐ CỤC LƯỚI CHÍNH ================= */
         .workspace { 
             display: grid; 
             grid-template-columns: 1fr;
-            gap: 15px; 
+            gap: 10px; 
             flex: 1; 
             min-height: 0; 
             overflow-y: auto;
@@ -63,7 +63,7 @@
         @media (min-width: 900px) {
             .workspace {
                 grid-template-columns: 1.4fr 1fr; /* Trái 60% (Map), Phải 40% (Controls) */
-                grid-template-rows: 1fr 220px;    /* Hàng dưới cao 220px cho Gauges/Telemetry */
+                grid-template-rows: 1fr 180px;    /* Thu nhỏ hàng dưới để nhét vừa khung */
                 overflow: hidden;
             }
             .panel-map { grid-column: 1; grid-row: 1; }
@@ -72,89 +72,90 @@
             .panel-telemetry { grid-column: 2; grid-row: 2; }
         }
 
-        .panel { background: var(--bg-panel); border-radius: 12px; padding: 18px; border: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: 0 4px 12px var(--shadow);}
-        .panel-header { font-size: 15px; font-weight: 900; color: var(--text-muted); border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;}
+        .panel { background: var(--bg-panel); border-radius: 8px; padding: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: 0 2px 8px var(--shadow);}
+        .panel-header { font-size: 13px; font-weight: 900; color: var(--text-muted); border-bottom: 2px solid var(--border); padding-bottom: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
 
         /* ================= VIRTUAL MAP ================= */
-        .map-area { background-color: var(--bg-panel); flex: 1; min-height: 250px; background-image: linear-gradient(var(--map-grid) 1px, transparent 1px), linear-gradient(90deg, var(--map-grid) 1px, transparent 1px); background-size: 25px 25px; border-radius: 10px; border: 2px solid var(--border); position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;}
+        .map-area { background-color: var(--bg-panel); flex: 1; min-height: 200px; background-image: linear-gradient(var(--map-grid) 1px, transparent 1px), linear-gradient(90deg, var(--map-grid) 1px, transparent 1px); background-size: 20px 20px; border-radius: 8px; border: 1px solid var(--border); position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;}
         .map-node { cursor: pointer; transition: 0.2s; }
         .map-node:hover circle { stroke-width: 5; fill: rgba(9, 132, 227, 0.1); }
         .map-node text { pointer-events: none; }
 
         /* ================= ROUTING CONTROLS ================= */
-        .route-controls { display: flex; flex-direction: column; gap: 15px; flex: 1; min-height: 0;}
-        .btn-goline { background: linear-gradient(135deg, var(--accent), #00a8ff); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 16px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; text-transform: uppercase;}
+        .route-controls { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0;}
+        .btn-goline { background: linear-gradient(135deg, var(--accent), #00a8ff); color: white; border: none; border-radius: 8px; font-weight: 900; font-size: 13px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; text-transform: uppercase;}
         .btn-goline.active { background: linear-gradient(135deg, #f39c12, #f1c40f); color: #000; }
         .btn-goline.waiting { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; animation: pulse 1.5s infinite;} 
         .btn-goline.locked { background: var(--border); color: var(--text-muted); cursor: not-allowed; } 
         
-        .input-row { display: flex; gap: 10px; }
-        .input-row input { flex: 1; padding: 14px; border-radius: 8px; border: 2px solid var(--border); background: var(--bg-main); color: var(--text-main); text-align: center; font-weight: bold; font-size: 16px; transition: 0.3s;}
-        .input-row button { background: var(--success); color: white; border: none; padding: 0 22px; border-radius: 8px; font-weight: 900; font-size: 24px; cursor: pointer; transition: 0.3s;}
+        .input-row { display: flex; gap: 8px; }
+        .input-row input { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-main); color: var(--text-main); text-align: center; font-weight: bold; font-size: 13px; transition: 0.3s;}
+        .input-row button { background: var(--success); color: white; border: none; padding: 0 15px; border-radius: 6px; font-weight: 900; font-size: 18px; cursor: pointer; transition: 0.3s;}
         
-        @keyframes flashBtn { 0%, 100% { box-shadow: 0 0 0px var(--success); transform: scale(1);} 50% { box-shadow: 0 0 15px var(--success); transform: scale(1.05); background: var(--warning); color: #000;} }
+        @keyframes flashBtn { 0%, 100% { box-shadow: 0 0 0px var(--success); transform: scale(1);} 50% { box-shadow: 0 0 10px var(--success); transform: scale(1.05); background: var(--warning); color: #000;} }
         .flash-add { animation: flashBtn 1s infinite !important; }
 
-        /* DANH SÁCH ĐIỂM (CÓ THANH CUỘN) */
+        /* DANH SÁCH ĐIỂM CỐ ĐỊNH CHIỀU CAO 2 THẺ */
         #pointList { 
             flex: 1; 
-            max-height: 220px; /* Ép giới hạn chiều cao để sinh thanh cuộn */
+            max-height: 110px; /* Ép cứng chiều cao chuẩn cho 2 thẻ */
+            min-height: 110px;
             overflow-y: auto; 
             overflow-x: hidden;
             display: flex; 
             flex-direction: column; 
-            gap: 10px; 
-            padding-right: 8px;
+            gap: 8px; 
+            padding-right: 5px;
         }
-        /* Style cho thanh cuộn List Điểm */
-        #pointList::-webkit-scrollbar { width: 6px; }
-        #pointList::-webkit-scrollbar-track { background: var(--bg-main); border-radius: 6px; }
-        #pointList::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 6px; }
+        /* Style cho thanh cuộn */
+        #pointList::-webkit-scrollbar { width: 5px; }
+        #pointList::-webkit-scrollbar-track { background: var(--bg-main); border-radius: 5px; }
+        #pointList::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 5px; }
         #pointList::-webkit-scrollbar-thumb:hover { background: #00a8ff; }
 
-        .point-btn { background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 12px 15px; cursor: pointer; position: relative; border-left: 6px solid var(--border); flex-shrink: 0;}
-        .point-btn .p-title { font-weight: 900; font-size: 16px; color: var(--text-main); margin-bottom: 4px;}
-        .point-btn .p-uid { font-size: 13px; color: var(--text-muted); font-family: monospace; }
-        .btn-del-point { position: absolute; top: 12px; right: 12px; background: rgba(255, 118, 117, 0.1); border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--danger); cursor: pointer; font-weight: bold;}
+        .point-btn { background: var(--bg-main); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; cursor: pointer; position: relative; border-left: 5px solid var(--border); flex-shrink: 0;}
+        .point-btn .p-title { font-weight: 900; font-size: 14px; color: var(--text-main); margin-bottom: 2px;}
+        .point-btn .p-uid { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+        .btn-del-point { position: absolute; top: 10px; right: 10px; background: rgba(255, 118, 117, 0.1); border: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--danger); cursor: pointer; font-weight: bold; font-size: 11px;}
         .point-btn.target { background: rgba(253, 203, 110, 0.1); border-left-color: var(--warning); border-color: var(--warning); }
         .point-btn.arrived { background: rgba(16, 172, 132, 0.1); border-left-color: var(--success); border-color: var(--success); }
 
-        .bottom-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .bottom-actions button { padding: 14px; border: none; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer;}
+        .bottom-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .bottom-actions button { padding: 10px; border: none; border-radius: 6px; font-weight: 900; font-size: 12px; cursor: pointer;}
         .btn-save { background: var(--success); color: white; } .btn-reset { background: var(--border); color: var(--text-main); }
 
         /* SAVED MAPS */
-        .saved-maps-area { background: var(--bg-main); border-radius: 10px; padding: 12px; border: 1px solid var(--border); display: none; }
+        .saved-maps-area { background: var(--bg-main); border-radius: 8px; padding: 8px; border: 1px solid var(--border); display: none; }
         .saved-maps-area.show { display: block; }
-        .map-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-panel); border-radius: 8px; font-weight: 900; font-size: 15px; border-left: 5px solid var(--accent); box-shadow: 0 2px 6px var(--shadow);}
-        .switch-container { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-muted);}
-        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .map-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-panel); border-radius: 6px; font-weight: 900; font-size: 13px; border-left: 4px solid var(--accent); box-shadow: 0 2px 4px var(--shadow);}
+        .switch-container { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);}
+        .switch { position: relative; display: inline-block; width: 36px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 24px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--success); }
-        input:checked + .slider:before { transform: translateX(20px); }
+        input:checked + .slider:before { transform: translateX(16px); }
 
         /* ================= GAUGES ================= */
-        .gauges-area { display: flex; justify-content: center; align-items: center; gap: 40px; padding: 10px 0; height: 100%;}
-        .gauge-container { display: flex; flex-direction: column; align-items: center; width: 140px; position: relative;}
-        .gauge-title { font-size: 14px; font-weight: 900; color: var(--text-muted); margin-bottom: -15px; z-index: 2;}
-        .gauge { position: relative; width: 140px; height: 70px; overflow: hidden; margin-top: 20px;}
-        .gauge-bg { position: absolute; top: 0; left: 0; width: 140px; height: 140px; border-radius: 50%; border: 12px solid var(--gauge-track); }
-        .gauge-fill { position: absolute; top: 0; left: 0; width: 140px; height: 140px; border-radius: 50%; border: 12px solid transparent; border-bottom-color: var(--accent); border-left-color: var(--accent); transform: rotate(-45deg); transition: transform 0.4s, border-color 0.4s;}
+        .gauges-area { display: flex; justify-content: center; align-items: center; gap: 30px; padding: 5px 0; height: 100%;}
+        .gauge-container { display: flex; flex-direction: column; align-items: center; width: 120px; position: relative;}
+        .gauge-title { font-size: 12px; font-weight: 900; color: var(--text-muted); margin-bottom: -10px; z-index: 2;}
+        .gauge { position: relative; width: 120px; height: 60px; overflow: hidden; margin-top: 15px;}
+        .gauge-bg { position: absolute; top: 0; left: 0; width: 120px; height: 120px; border-radius: 50%; border: 10px solid var(--gauge-track); }
+        .gauge-fill { position: absolute; top: 0; left: 0; width: 120px; height: 120px; border-radius: 50%; border: 10px solid transparent; border-bottom-color: var(--accent); border-left-color: var(--accent); transform: rotate(-45deg); transition: transform 0.4s, border-color 0.4s;}
         .gauge-val-box { position: absolute; bottom: -5px; width: 100%; text-align: center; }
-        .gauge-val { font-size: 32px; font-weight: 900; color: var(--text-main); font-family: monospace; line-height: 1;}
-        .gauge-unit { font-size: 12px; color: var(--text-muted); font-weight: 800;}
+        .gauge-val { font-size: 24px; font-weight: 900; color: var(--text-main); font-family: monospace; line-height: 1;}
+        .gauge-unit { font-size: 10px; color: var(--text-muted); font-weight: 800;}
 
         /* ================= TELEMETRY BOXES ================= */
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px; height: 100%;}
-        .info-box { border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; box-shadow: 0 4px 10px var(--shadow); transition: 0.3s;}
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; height: 100%;}
+        .info-box { border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; box-shadow: 0 2px 6px var(--shadow); transition: 0.3s;}
         .box-wifi { background: var(--box-wifi); border: 1px solid rgba(9, 132, 227, 0.2); } .box-wifi .i-label, .box-wifi .i-val { color: var(--txt-wifi); }
         .box-stat { background: var(--box-stat); border: 1px solid rgba(0, 184, 148, 0.2); } .box-stat .i-label, .box-stat .i-val { color: var(--txt-stat); }
         .box-volt { background: var(--box-volt); border: 1px solid rgba(230, 126, 34, 0.2); } .box-volt .i-label, .box-volt .i-val { color: var(--txt-volt); }
         .box-amp { background: var(--box-amp); border: 1px solid rgba(211, 84, 0, 0.2); } .box-amp .i-label, .box-amp .i-val { color: var(--txt-amp); }
-        .info-box .i-label { font-size: 13px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;}
-        .info-box .i-val { font-size: 26px; font-weight: 900; font-family: monospace;}
+        .info-box .i-label { font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 2px;}
+        .info-box .i-val { font-size: 20px; font-weight: 900; font-family: monospace;}
 
     </style>
 </head>
@@ -164,9 +165,9 @@
         <div class="sys-title">AGV <span>PRO-DASH</span></div>
         <div class="sys-status-bar">
             <div id="sysStatus" class="status-badge stopped">STOPPED</div>
-            <button id="btnEStop" class="btn-estop">E-STOP KHẨN CẤP</button>
+            <button id="btnEStop" class="btn-estop">E-STOP</button>
         </div>
-        <div style="display: flex; gap: 15px; align-items: center;">
+        <div style="display: flex; gap: 10px; align-items: center;">
             <button id="btnTheme" class="btn-icon">🌓 GIAO DIỆN</button>
             <div class="time-box"><div id="clockDate">--/--/----</div><div id="clockTime" class="clock">--:--:--</div></div>
         </div>
@@ -180,7 +181,7 @@
             </div>
             <div class="map-area">
                 <svg id="svgMap" width="100%" height="100%" style="position: absolute; top:0; left:0;"></svg>
-                <div id="agvIcon" style="position: absolute; width: 36px; height: 36px; background: var(--accent); border-radius: 50%; border: 4px solid white; box-shadow: 0 4px 15px rgba(9, 132, 227, 0.5); transition: all 1s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; z-index: 10; pointer-events: none; display: flex; align-items: center; justify-content: center;"><div style="width: 12px; height: 12px; background: white; border-radius: 50%;"></div></div>
+                <div id="agvIcon" style="position: absolute; width: 30px; height: 30px; background: var(--accent); border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 10px rgba(9, 132, 227, 0.5); transition: all 1s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; z-index: 10; pointer-events: none; display: flex; align-items: center; justify-content: center;"><div style="width: 10px; height: 10px; background: white; border-radius: 50%;"></div></div>
             </div>
         </div>
 
@@ -190,10 +191,10 @@
             </div>
             <div class="route-controls">
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                  <button id="btnGoLine" class="btn-goline" style="grid-column: span 2; padding: 20px;">▶ BẮT ĐẦU CHẠY AUTO</button>
-                  <button id="btnPause" class="btn-goline" style="background: var(--warning); color: #000; padding: 15px;">⏸ TẠM DỪNG</button>
-                  <button id="btnContinue" class="btn-goline" style="background: #9b59b6; color: #fff; padding: 15px;">⏭ TIẾP TỤC (BỎ QUA THẺ)</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <button id="btnGoLine" class="btn-goline" style="grid-column: span 2; padding: 12px;">▶ BẮT ĐẦU CHẠY AUTO</button>
+                  <button id="btnPause" class="btn-goline" style="background: var(--warning); color: #000; padding: 10px;">⏸ TẠM DỪNG</button>
+                  <button id="btnContinue" class="btn-goline" style="background: #9b59b6; color: #fff; padding: 10px;">⏭ BỎ QUA THẺ</button>
                 </div>
 
                 <div class="input-row">
@@ -209,7 +210,7 @@
                 </div>
 
                 <div id="savedMapsArea" class="saved-maps-area">
-                    <div style="font-size: 12px; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">BẢN ĐỒ ĐÃ LƯU TRONG BỘ NHỚ</div>
+                    <div style="font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 6px;">BẢN ĐỒ ĐÃ LƯU TRONG BỘ NHỚ</div>
                     <div class="map-item">
                         <span>🗺️ MAP CHÍNH</span>
                         <div class="switch-container">
@@ -234,7 +235,7 @@
         </div>
 
         <div class="panel panel-telemetry">
-            <div class="panel-header" style="margin-bottom: 10px;">📊 THÔNG SỐ REALTIME</div>
+            <div class="panel-header" style="margin-bottom: 8px;">📊 THÔNG SỐ REALTIME</div>
             <div class="info-grid">
                 <div class="info-box box-wifi"><span class="i-label">📡 Wi-Fi</span><span class="i-val" id="valWifi">-- %</span></div>
                 <div class="info-box box-stat"><span class="i-label">✅ Trạng thái</span><span class="i-val" id="valState">OK</span></div>
@@ -355,7 +356,7 @@
             } else { 
                 document.getElementById('savedMapsArea').classList.add('show'); 
                 const w = svgMap.clientWidth || 400; const h = svgMap.clientHeight || 300;
-                const cx = w / 2; const cy = h / 2; const r = Math.min(w, h) * 0.38;
+                const cx = w / 2; const cy = h / 2; const r = Math.min(w, h) * 0.35;
                 let polygonPoints = "";
 
                 savedCheckpoints.forEach((cp, i) => {
@@ -368,11 +369,11 @@
                     group.setAttribute("class", "map-node"); group.onclick = () => gotoPoint(i);
 
                     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                    circle.setAttribute("id", `svgCircle_${i}`); circle.setAttribute("cx", px); circle.setAttribute("cy", py); circle.setAttribute("r", "16"); 
-                    circle.setAttribute("fill", "var(--bg-panel)"); circle.setAttribute("stroke", "var(--accent)"); circle.setAttribute("stroke-width", "4");
+                    circle.setAttribute("id", `svgCircle_${i}`); circle.setAttribute("cx", px); circle.setAttribute("cy", py); circle.setAttribute("r", "14"); 
+                    circle.setAttribute("fill", "var(--bg-panel)"); circle.setAttribute("stroke", "var(--accent)"); circle.setAttribute("stroke-width", "3");
                     
                     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                    text.setAttribute("x", px); text.setAttribute("y", py + 5); text.setAttribute("fill", "var(--text-main)"); text.setAttribute("font-weight", "900"); text.setAttribute("font-size", "14px"); text.setAttribute("text-anchor", "middle"); text.textContent = letter;
+                    text.setAttribute("x", px); text.setAttribute("y", py + 4); text.setAttribute("fill", "var(--text-main)"); text.setAttribute("font-weight", "900"); text.setAttribute("font-size", "12px"); text.setAttribute("text-anchor", "middle"); text.textContent = letter;
                     group.appendChild(circle); group.appendChild(text); svgMap.appendChild(group);
                 });
 
@@ -389,7 +390,7 @@
                 btn.className = 'point-btn'; btn.id = `btnCP_${i}`;
                 
                 let titleHtml = `<div class="p-title">${letter}. UID Thẻ: ${cp.uid.substring(0,6)}...`;
-                if(!isSaved) titleHtml += ` <span style="color:var(--warning); font-size:12px;">(Chưa lưu)</span>`;
+                if(!isSaved) titleHtml += ` <span style="color:var(--warning); font-size:11px;">(Chưa lưu)</span>`;
                 titleHtml += `</div><div class="p-uid">${cp.uid}</div>`;
                 
                 btn.innerHTML = titleHtml + `<button class="btn-del-point">✕</button>`;
@@ -412,12 +413,12 @@
                 pointListDiv.appendChild(btn);
             });
             
-            // Tự động cuộn xuống dưới cùng khi có điểm mới
+            // Tự động cuộn xuống thẻ mới nhất
             setTimeout(() => { pointListDiv.scrollTop = pointListDiv.scrollHeight; }, 50);
         }
 
         function moveAGVTo(index) {
-            if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 18) + 'px'; agvIcon.style.top = (mapPoints[index].y - 18) + 'px'; }
+            if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 15) + 'px'; agvIcon.style.top = (mapPoints[index].y - 15) + 'px'; }
         }
 
         function handleScanRFID(rfid) {
