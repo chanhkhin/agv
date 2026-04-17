@@ -44,7 +44,7 @@
         .status-badge.running { background: var(--success); }
         .status-badge.stopped { background: var(--warning); color: #000; }
         .status-badge.error { background: var(--danger); animation: blink 1s infinite; }
-        .status-badge.waiting { background: #9b59b6; animation: pulse 1.5s infinite; } /* Trạng thái chờ lệnh */
+        .status-badge.waiting { background: #9b59b6; animation: pulse 1.5s infinite; } 
         
         @keyframes blink { 50% { opacity: 0.5; } }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
@@ -84,14 +84,13 @@
         .route-controls { display: flex; flex-direction: column; gap: 12px; }
         .btn-goline { background: linear-gradient(135deg, var(--accent), #00a8ff); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer; transition: 0.2s;}
         .btn-goline.active { background: linear-gradient(135deg, #f39c12, #f1c40f); color: #000; }
-        .btn-goline.waiting { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; animation: pulse 1.5s infinite;} /* Trạng thái nút chờ */
-        .btn-goline.locked { background: var(--border); color: var(--text-muted); cursor: not-allowed; } /* Bị khóa khi đang chạy Map */
+        .btn-goline.waiting { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; animation: pulse 1.5s infinite;} 
+        .btn-goline.locked { background: var(--border); color: var(--text-muted); cursor: not-allowed; } 
         
         .input-row { display: flex; gap: 8px; }
         .input-row input { flex: 1; padding: 10px; border-radius: 6px; border: 2px solid var(--border); background: var(--bg-main); color: var(--text-main); text-align: center; font-weight: bold; transition: 0.3s;}
         .input-row button { background: var(--success); color: white; border: none; padding: 0 18px; border-radius: 6px; font-weight: 900; font-size: 20px; cursor: pointer; transition: 0.3s;}
         
-        /* Hiệu ứng nhấp nháy nhắc người dùng lưu điểm */
         @keyframes flashBtn { 0%, 100% { box-shadow: 0 0 0px var(--success); transform: scale(1);} 50% { box-shadow: 0 0 15px var(--success); transform: scale(1.05); background: var(--warning); color: #000;} }
         .flash-add { animation: flashBtn 1s infinite !important; }
 
@@ -105,7 +104,7 @@
 
         .bottom-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .bottom-actions button { padding: 10px; border: none; border-radius: 6px; font-weight: 800; font-size: 12px; cursor: pointer;}
-        .btn-save { background: var(--border); color: var(--text-main); } .btn-reset { background: var(--border); color: var(--text-main); }
+        .btn-save { background: var(--success); color: white; } .btn-reset { background: var(--border); color: var(--text-main); }
 
         /* THIẾT KẾ PHẦN MAP ĐÃ LƯU */
         .saved-maps-area { background: var(--bg-main); border-radius: 8px; padding: 10px; border: 1px solid var(--border); margin-top: 10px; display: none; }
@@ -271,8 +270,11 @@
         let actionV1, actionV2, actionV3, actionV10, actionV11, actionV12, actionV13, actionMapSync; 
         let configUID, configWifi, configVolt, configAmp, configPWML, configPWMR; 
         
+        // BIẾN QUAN TRỌNG: Tách điểm tạm và điểm đã lưu
         let savedCheckpoints = JSON.parse(localStorage.getItem('AGV_Checkpoints')) || [];
-        let systemState = 'stopped'; // states: stopped, running, error, waiting
+        let tempCheckpoints = [...savedCheckpoints]; // Mảng chứa điểm đang quét (tạm)
+        
+        let systemState = 'stopped'; 
         let mapPoints = [];
         let controlSource = 'WEB';
         let targetUID = null;
@@ -370,81 +372,97 @@
 
         function renderMapAndList() {
             pointListDiv.innerHTML = ''; svgMap.innerHTML = ''; mapPoints = [];
+            
+            // 1. CHỈ HIỆN VÀ VẼ BẢN ĐỒ SVG NẾU ĐÃ BẤM "LƯU MAP" (tức là savedCheckpoints có data)
             if(savedCheckpoints.length === 0) { 
-                agvIcon.style.opacity = 0; document.getElementById('savedMapsArea').classList.remove('show'); return; 
-            } else { document.getElementById('savedMapsArea').classList.add('show'); }
+                agvIcon.style.opacity = 0; document.getElementById('savedMapsArea').classList.remove('show'); 
+            } else { 
+                document.getElementById('savedMapsArea').classList.add('show'); 
+                const w = svgMap.clientWidth || 400; const h = svgMap.clientHeight || 300;
+                const cx = w / 2; const cy = h / 2; const r = Math.min(w, h) * 0.35;
+                let polygonPoints = "";
 
-            const w = svgMap.clientWidth || 400; const h = svgMap.clientHeight || 300;
-            const cx = w / 2; const cy = h / 2; const r = Math.min(w, h) * 0.35;
-            let polygonPoints = "";
+                savedCheckpoints.forEach((cp, i) => {
+                    const angle = (i / savedCheckpoints.length) * 2 * Math.PI - Math.PI/2;
+                    const px = cx + r * Math.cos(angle); const py = cy + r * Math.sin(angle);
+                    mapPoints.push({x: px, y: py}); polygonPoints += `${px},${py} `;
 
-            savedCheckpoints.forEach((cp, i) => {
-                const angle = (i / savedCheckpoints.length) * 2 * Math.PI - Math.PI/2;
-                const px = cx + r * Math.cos(angle); const py = cy + r * Math.sin(angle);
-                mapPoints.push({x: px, y: py}); polygonPoints += `${px},${py} `;
+                    const letter = String.fromCharCode(65 + i);
+                    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    group.setAttribute("class", "map-node"); group.onclick = () => gotoPoint(i);
 
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    circle.setAttribute("id", `svgCircle_${i}`); circle.setAttribute("cx", px); circle.setAttribute("cy", py); circle.setAttribute("r", "14"); 
+                    circle.setAttribute("fill", "var(--bg-panel)"); circle.setAttribute("stroke", "var(--accent)"); circle.setAttribute("stroke-width", "3");
+                    
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute("x", px); text.setAttribute("y", py + 4); text.setAttribute("fill", "var(--text-main)"); text.setAttribute("font-weight", "900"); text.setAttribute("font-size", "13px"); text.setAttribute("text-anchor", "middle"); text.textContent = letter;
+                    group.appendChild(circle); group.appendChild(text); svgMap.appendChild(group);
+                });
+
+                const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                polyline.setAttribute("points", polygonPoints); polyline.setAttribute("fill", "none"); polyline.setAttribute("stroke", "var(--accent)"); polyline.setAttribute("stroke-width", "2"); polyline.setAttribute("stroke-dasharray", "8,8"); polyline.setAttribute("opacity", "0.4");
+                svgMap.insertBefore(polyline, svgMap.firstChild);
+                agvIcon.style.opacity = 1;
+            }
+
+            // 2. DANH SÁCH ĐIỂM (POINT LIST) LẤY TỪ MẢNG TẠM (tempCheckpoints)
+            tempCheckpoints.forEach((cp, i) => {
+                const isSaved = i < savedCheckpoints.length; // Kiểm tra điểm này đã được lưu chưa
                 const letter = String.fromCharCode(65 + i);
                 const btn = document.createElement('div');
                 btn.className = 'point-btn'; btn.id = `btnCP_${i}`;
-                btn.innerHTML = `<div class="p-title">${letter}. UID: ${cp.uid.substring(0,6)}...</div><button class="btn-del-point">✕</button>`;
+                
+                let titleHtml = `<div class="p-title">${letter}. UID: ${cp.uid.substring(0,6)}...`;
+                if(!isSaved) titleHtml += ` <span style="color:var(--warning); font-size:11px;">(Chưa lưu)</span>`;
+                titleHtml += `</div><div class="p-uid">${cp.uid}</div>`;
+                
+                btn.innerHTML = titleHtml + `<button class="btn-del-point">✕</button>`;
                 
                 btn.onclick = (e) => {
                     if(e.target.classList.contains('btn-del-point')) {
-                        if(confirm(`Xóa Điểm ${letter}?`)) { savedCheckpoints.splice(i, 1); syncMapToESP(); renderMapAndList(); } return;
+                        if(confirm(`Xóa Điểm ${letter}?`)) { 
+                            tempCheckpoints.splice(i, 1); 
+                            // Nếu xóa 1 điểm đã lưu, phải xóa luôn trong mảng chính
+                            if(isSaved) {
+                                savedCheckpoints.splice(i, 1);
+                                syncMapToESP();
+                            }
+                            renderMapAndList(); 
+                        } 
+                        return;
                     }
-                    gotoPoint(i);
+                    if(isSaved) gotoPoint(i);
+                    else alert("Bạn phải LƯU MAP trước khi có thể chạy tự động tới điểm này!");
                 };
                 pointListDiv.appendChild(btn);
-
-                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                group.setAttribute("class", "map-node"); group.onclick = () => gotoPoint(i);
-
-                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                circle.setAttribute("id", `svgCircle_${i}`); circle.setAttribute("cx", px); circle.setAttribute("cy", py); circle.setAttribute("r", "14"); 
-                circle.setAttribute("fill", "var(--bg-panel)"); circle.setAttribute("stroke", "var(--accent)"); circle.setAttribute("stroke-width", "3");
-                
-                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                text.setAttribute("x", px); text.setAttribute("y", py + 4); text.setAttribute("fill", "var(--text-main)"); text.setAttribute("font-weight", "900"); text.setAttribute("font-size", "13px"); text.setAttribute("text-anchor", "middle"); text.textContent = letter;
-                group.appendChild(circle); group.appendChild(text); svgMap.appendChild(group);
             });
-
-            const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-            polyline.setAttribute("points", polygonPoints); polyline.setAttribute("fill", "none"); polyline.setAttribute("stroke", "var(--accent)"); polyline.setAttribute("stroke-width", "2"); polyline.setAttribute("stroke-dasharray", "8,8"); polyline.setAttribute("opacity", "0.4");
-            svgMap.insertBefore(polyline, svgMap.firstChild);
-            agvIcon.style.opacity = 1;
         }
 
         function moveAGVTo(index) {
             if(mapPoints[index]) { agvIcon.style.left = (mapPoints[index].x - 16) + 'px'; agvIcon.style.top = (mapPoints[index].y - 16) + 'px'; }
         }
 
-        // ================= LOGIC MỚI XỬ LÝ QUÉT THẺ =================
         function handleScanRFID(rfid) {
-            // Hiển thị UID lên màn hình và tạo hiệu ứng nhấp nháy cho nút "+"
             uidInput.value = rfid; 
             uidInput.style.borderColor = "var(--success)"; setTimeout(() => uidInput.style.borderColor = "var(--border)", 500);
-            btnAddPoint.classList.add('flash-add'); // Bật nhấp nháy nút cộng
+            btnAddPoint.classList.add('flash-add'); 
 
-            // Nếu ĐANG TRONG CHẾ ĐỘ DẠY MAP (Không bật chạy tự động)
             if (!toggleAutoRoute.checked) {
-                setStatus('waiting'); // Xe dừng lại chờ lệnh
+                setStatus('waiting'); 
                 btnGoLine.className = "btn-goline waiting";
-                btnGoLine.innerHTML = "▶ TIẾP TỤC (Bỏ qua thẻ)"; // Đổi nút để đi tiếp
+                btnGoLine.innerHTML = "▶ TIẾP TỤC (Bỏ qua thẻ)"; 
             } 
-            // Nếu ĐANG BẬT CHẠY MAP THEO ĐIỂM
             else {
-                // Di chuyển icon trên bản đồ nếu rfid trùng checkpoint
                 savedCheckpoints.forEach((cp, index) => {
                     if(cp.uid === rfid) moveAGVTo(index); 
                 });
 
-                // Kiểm tra xem thẻ này có phải là thẻ MỤC TIÊU không
                 if (rfid === targetUID && systemState === 'running') {
-                    setStatus('stopped'); // Đã tới đích -> Dừng lại
+                    setStatus('stopped'); 
                     btnGoLine.className = "btn-goline locked";
                     btnGoLine.innerHTML = "ĐÃ TỚI ĐÍCH";
                     
-                    // Hiệu ứng xanh lá cho điểm tới đích
                     savedCheckpoints.forEach((cp, index) => {
                         if(cp.uid === rfid) {
                             document.getElementById(`btnCP_${index}`).classList.replace('target', 'arrived');
@@ -480,28 +498,24 @@
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); 
         }
 
-        // ================= CẬP NHẬT NÚT GO LINE =================
         btnGoLine.onclick = function() {
             if(systemState === 'error') return;
             if(controlSource !== 'WEB') return alert("Vui lòng chuyển sang WEB (E-RA) để chạy Tự động!");
             
-            // 1. Chặn bấm nếu đang bật chế độ CHẠY MAP (chỉ được phép chọn điểm)
             if(toggleAutoRoute.checked) {
                 return alert("Đang bật CHẠY MAP! Vui lòng nhấp thẳng vào các điểm A, B, C trên bản đồ để xe chạy tới đó.");
             }
 
-            if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); // Hủy target
+            if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""});
 
-            // 2. Nếu xe đang chờ lệnh (vừa tìm thấy thẻ khi dạy Map)
             if (systemState === 'waiting') {
                 setStatus('running');
                 this.className = "btn-goline active";
                 this.innerHTML = "⏸ TẠM DỪNG";
-                if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100}); // Gửi lệnh đi tiếp
+                if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 2100});
                 return;
             }
 
-            // 3. Logic Bắt đầu / Dừng thông thường
             const isRun = this.classList.toggle('active');
             if(isRun) { 
                 this.innerHTML = "⏸ TẠM DỪNG"; setStatus('running'); 
@@ -512,12 +526,11 @@
             }
         };
 
-        // Khi bật/tắt công tắc CHẠY MAP
         toggleAutoRoute.addEventListener('change', function() {
             if(this.checked) {
                 btnGoLine.className = "btn-goline locked";
                 btnGoLine.innerHTML = "CHỌN ĐIỂM ĐẾN TRÊN BẢN ĐỒ";
-                if(systemState === 'running') btnGoLine.click(); // Tạm dừng xe nếu đang chạy
+                if(systemState === 'running') btnGoLine.click(); 
             } else {
                 btnGoLine.className = "btn-goline";
                 btnGoLine.innerHTML = "▶ BẮT ĐẦU GO LINE";
@@ -531,7 +544,6 @@
             }
         });
 
-        // ================= XỬ LÝ ĐIỀU KHIỂN THỦ CÔNG =================
         function sendV1(value) { if(systemState === 'error' || controlSource !== 'WEB') return; setStatus(value === 1494 ? 'stopped' : 'running'); if (actionV1) eraWidget.triggerAction(actionV1.action, null, { value: value }); }
         function sendV2(value) { if(systemState === 'error' || controlSource !== 'WEB') return; setStatus(value === 1497 ? 'stopped' : 'running'); if (actionV2) eraWidget.triggerAction(actionV2.action, null, { value: value }); }
 
@@ -566,28 +578,43 @@
         btnWeb.addEventListener('click', () => { controlSource = 'WEB'; btnWeb.classList.add('active'); btnRC.classList.remove('active'); interZone.classList.remove('disabled'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 1000}); });
         btnRC.addEventListener('click', () => { controlSource = 'RC'; btnRC.classList.add('active'); btnWeb.classList.remove('active'); interZone.classList.add('disabled'); if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 3000}); });
 
+        // NÚT THÊM ĐIỂM (CHỈ ĐẨY VÀO MẢNG TẠM)
         btnAddPoint.onclick = () => {
             const uid = uidInput.value.trim(); if(!uid) return alert("Quét thẻ hoặc nhập UID!");
-            savedCheckpoints.push({uid: uid}); 
+            tempCheckpoints.push({uid: uid}); 
             uidInput.value = ""; 
-            btnAddPoint.classList.remove('flash-add'); // Tắt hiệu ứng nhấp nháy sau khi đã lưu
-            syncMapToESP(); renderMapAndList();
+            btnAddPoint.classList.remove('flash-add'); 
+            renderMapAndList(); // Vẽ lại List (SVG map không đổi)
         };
         
-        document.getElementById('btnSave').onclick = () => { syncMapToESP(); renderMapAndList(); alert("Đã đồng bộ Map xuống ESP32!"); };
-        document.getElementById('btnReset').onclick = () => { if(confirm("Xóa toàn bộ bản đồ?")) { savedCheckpoints = []; syncMapToESP(); renderMapAndList(); }};
+        // NÚT LƯU MAP (CHỐT MẢNG TẠM SANG MẢNG LƯU VÀ GỬI XUỐNG ESP)
+        document.getElementById('btnSave').onclick = () => { 
+            savedCheckpoints = [...tempCheckpoints]; // Copy mảng tạm sang mảng chính
+            syncMapToESP(); 
+            renderMapAndList(); 
+            alert("Đã đồng bộ Map xuống ESP32!"); 
+        };
+
+        // NÚT XÓA HẾT
+        document.getElementById('btnReset').onclick = () => { 
+            if(confirm("Xóa toàn bộ bản đồ?")) { 
+                savedCheckpoints = []; 
+                tempCheckpoints = []; // Xóa cả mảng tạm
+                syncMapToESP(); 
+                renderMapAndList(); 
+            }
+        };
 
         document.getElementById('btnEStop').onclick = () => {
             setStatus('error'); updateGauges(0, 0); targetUID = null;
             if(actionV13) eraWidget.triggerAction(actionV13.action, null, {value: ""}); 
             btnGoLine.className = "btn-goline"; btnGoLine.innerHTML = "▶ BẮT ĐẦU GO LINE";
-            if(toggleAutoRoute.checked) { toggleAutoRoute.checked = false; toggleAutoRoute.dispatchEvent(new Event('change')); } // Tắt chạy map nếu đang bật
+            if(toggleAutoRoute.checked) { toggleAutoRoute.checked = false; toggleAutoRoute.dispatchEvent(new Event('change')); }
             if(actionV1) eraWidget.triggerAction(actionV1.action, null, {value: 1494});
             if(actionV2) eraWidget.triggerAction(actionV2.action, null, {value: 1497});
             if(actionV3) eraWidget.triggerAction(actionV3.action, null, {value: 9999});
         };
 
-        // Bảng PID
         document.getElementById('btnTune').onclick = () => document.getElementById('modalPID').classList.add('show');
         document.getElementById('btnCancelPID').onclick = () => document.getElementById('modalPID').classList.remove('show');
         document.getElementById('btnSavePID').onclick = () => { 
